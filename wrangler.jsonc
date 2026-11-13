@@ -19,7 +19,7 @@
     {
       "binding": "DB",
       "database_name": "melanie-library",
-      "database_id": "REPLACE_WITH_DATABASE_ID",
+      "database_id": "6e9a2e44-0ffe-4e81-825a-cca0251a7e80",
       "migrations_dir": "migrations"
     }
   ],
@@ -39,9 +39,9 @@
 
   "vars": {
     // Your Cloudflare One team domain, like https://yourteam.cloudflareaccess.com
-    "TEAM_DOMAIN": "REPLACE_WITH_TEAM_DOMAIN",
+    "TEAM_DOMAIN": "https://dawn-grass-f7f3.cloudflareaccess.com",
     // The Access application's AUD tag (Zero Trust > Access controls > Applications > Edit)
-    "POLICY_AUD": "REPLACE_WITH_AUD_TAG",
+    "POLICY_AUD": "7785a5d74f6bb286715874e84f7c35d99fee6dfa5f6c14e81ed2ac1132031a68",
     "BACKUP_KEEP": "30"
   }
   // ALLOWED_EMAILS (your two addresses, comma separated) is set as a secret,
