@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#14161a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Library">
+  <title>Library</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="top">
+    <h1>Library</h1>
+    <div class="top-actions">
+      <button id="view-toggle" class="ghost" aria-label="Switch between list and covers">Covers</button>
+      <button id="add-open" class="primary">Add book</button>
+    </div>
+  </header>
+
+  <nav class="filters" aria-label="Filter">
+    <input id="search" type="search" placeholder="Search title, author or ISBN" autocomplete="off">
+    <div id="status-chips" class="chips" role="group" aria-label="Status"></div>
+  </nav>
+
+  <main>
+    <p id="count" class="muted"></p>
+    <ul id="books" class="books list"></ul>
+    <p id="empty" class="empty" hidden>No books yet. Tap Add book to put the first one on the shelf.</p>
+  </main>
+
+  <footer class="bottom">
+    <button id="show-deleted" class="ghost">Recently removed</button>
+    <a id="export" class="ghost button" href="/api/export.csv">Export spreadsheet</a>
+    <span id="who" class="muted"></span>
+  </footer>
+
+  <dialog id="add-dialog">
+    <form id="add-form" method="dialog">
+      <h2>Add a book</h2>
+      <label>Title <input name="title" required autocomplete="off"></label>
+      <label>Author <input name="author" placeholder="Separate more than one with a comma" autocomplete="off"></label>
+      <label>ISBN <input name="isbn" inputmode="numeric" autocomplete="off"></label>
+      <label>Status <select name="status_code" id="add-status"></select></label>
+      <label>List <select name="list_code" id="add-list"></select></label>
+      <label>Shelf location <input name="shelf_location" autocomplete="off"></label>
+      <div class="dialog-actions">
+        <button type="button" id="add-cancel" class="ghost">Cancel</button>
+        <button type="submit" class="primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" hidden>
+    <span id="toast-text"></span>
+    <button id="toast-undo" class="ghost">Undo</button>
+  </div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

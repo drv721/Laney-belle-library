@@ -1,0 +1,49 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "melanie-library",
+  "main": "./src/index.js",
+  "compatibility_date": "2026-11-12",
+  "upload_source_maps": true,
+
+  // The app (HTML, CSS, JS) is served as static assets.
+  // Only /api/* runs the Worker first; everything else is the app.
+  "assets": {
+    "directory": "./public/",
+    "not_found_handling": "single-page-application",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+
+  // Her library. Paste the id that `wrangler d1 create` prints.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "melanie-library",
+      "database_id": "REPLACE_WITH_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // Nightly copies, the last 30 kept.
+  "r2_buckets": [
+    {
+      "binding": "BACKUPS",
+      "bucket_name": "melanie-library-backups"
+    }
+  ],
+
+  // 08:00 UTC is 2 AM in Chicago in winter, 3 AM in summer.
+  "triggers": {
+    "crons": ["0 8 * * *"]
+  },
+
+  "vars": {
+    // Your Cloudflare One team domain, like https://yourteam.cloudflareaccess.com
+    "TEAM_DOMAIN": "REPLACE_WITH_TEAM_DOMAIN",
+    // The Access application's AUD tag (Zero Trust > Access controls > Applications > Edit)
+    "POLICY_AUD": "REPLACE_WITH_AUD_TAG",
+    "BACKUP_KEEP": "30"
+  }
+  // ALLOWED_EMAILS (your two addresses, comma separated) is set as a secret,
+  // so the addresses never sit in the repo: `npx wrangler secret put ALLOWED_EMAILS`
+}
