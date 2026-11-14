@@ -3,6 +3,8 @@
 
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { backupToR2 } from "./backup.js";
+import { lookupCovers, MAX_ISBNS_PER_CALL } from "./covers.js";
+import { libraryKeys, startImport, importRows, listImports, undoImport } from "./import.js";
 
 const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8" };
 const json = (data, status = 200) =>
@@ -139,6 +141,17 @@ async function addBook(env, by, body) {
   if (!book.title || !String(book.title).trim()) return fail(400, "A title is needed.");
   book.title = String(book.title).trim();
   if (!book.authors) book.authors = "[]";
+
+  // A book added with an ISBN gets its cover from Open Library. If that
+  // lookup fails, the book still saves without a cover.
+  if (!book.cover_url && typeof book.isbn13 === "string" && /^\d{13}$/.test(book.isbn13)) {
+    try {
+      const found = await lookupCovers(env, [book.isbn13]);
+      if (found[book.isbn13]) book.cover_url = found[book.isbn13];
+    } catch (err) {
+      console.error("cover lookup", err);
+    }
+  }
 
   const bookId = newId();
   const itemId = newId();
@@ -283,6 +296,35 @@ async function handleApi(request, env) {
   if (path === "/api/books" && method === "GET") return json(await listItems(env, url));
   if (path === "/api/books" && method === "POST") return addBook(env, email, body);
   if (path === "/api/export.csv" && method === "GET") return exportCsv(env);
+
+  // Covers for up to 25 ISBN-13s at a time: /api/covers?isbn=978...,978...
+  if (path === "/api/covers" && method === "GET") {
+    const isbns = (url.searchParams.get("isbn") || "").split(",").map((s) => s.trim()).filter(Boolean);
+    if (isbns.length > MAX_ISBNS_PER_CALL) return fail(400, `Ask for ${MAX_ISBNS_PER_CALL} at most.`);
+    try {
+      return json(await lookupCovers(env, isbns));
+    } catch (err) {
+      console.error("covers", err);
+      return fail(502, "Covers aren't available right now. The import still works without them.");
+    }
+  }
+
+  // Imports
+  if (path === "/api/import/keys" && method === "GET") return json(await libraryKeys(env));
+  if (path === "/api/import/start" && method === "POST") {
+    const r = await startImport(env, email, body);
+    return json(r.data, r.status);
+  }
+  if (path === "/api/import/rows" && method === "POST") {
+    const r = await importRows(env, email, body);
+    return json(r.data, r.status);
+  }
+  if (path === "/api/imports" && method === "GET") return json(await listImports(env));
+  m = path.match(/^\/api\/imports\/([0-9a-f-]{36})\/undo$/);
+  if (m && method === "POST") {
+    const r = await undoImport(env, email, m[1]);
+    return json(r.data, r.status);
+  }
 
   m = path.match(/^\/api\/books\/([0-9a-f-]{36})(\/restore)?$/);
   if (m) {

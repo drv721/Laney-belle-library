@@ -19,6 +19,7 @@
     </div>
   </header>
 
+  <div id="library-view">
   <nav class="filters" aria-label="Filter">
     <input id="search" type="search" placeholder="Search title, author or ISBN" autocomplete="off">
     <div id="status-chips" class="chips" role="group" aria-label="Status"></div>
@@ -32,9 +33,32 @@
 
   <footer class="bottom">
     <button id="show-deleted" class="ghost">Recently removed</button>
+    <button id="import-open" class="ghost">Import from Libib</button>
     <a id="export" class="ghost button" href="/api/export.csv">Export spreadsheet</a>
     <span id="who" class="muted"></span>
   </footer>
+  </div>
+
+  <section id="import-view" hidden>
+    <div class="top">
+      <h2>Import from Libib</h2>
+      <button id="import-close" class="ghost">Back to library</button>
+    </div>
+    <p class="muted">In Libib, export each collection as a spreadsheet, then pick the files here. You can pick several at once. Nothing is saved until you tap Import.</p>
+    <input id="import-files" type="file" accept=".csv,text/csv" multiple>
+    <p id="import-summary" class="muted" role="status"></p>
+    <p id="import-covers" class="muted"></p>
+    <div class="import-actions">
+      <button id="import-skip-dupes" class="ghost" hidden>Skip duplicates</button>
+      <button id="import-go" class="primary" hidden>Import</button>
+    </div>
+    <progress id="import-progress" hidden></progress>
+    <div id="import-review"></div>
+    <h2 id="import-past-head" hidden>Past imports</h2>
+    <ul id="import-past" class="past-imports"></ul>
+  </section>
+
+  <p class="credit muted">Covers from <a href="https://openlibrary.org">Open Library</a></p>
 
   <dialog id="add-dialog">
     <form id="add-form" method="dialog">

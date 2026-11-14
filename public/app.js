@@ -1,6 +1,8 @@
 // Library app front end. Plain JS, no build step.
 // Everything it shows comes from /api, so every device sees the same library.
 
+import { openImport, wireImport } from "./import.js";
+
 const $ = (sel) => document.querySelector(sel);
 const state = {
   settings: { statuses: [], lists: [], collections: [] },
@@ -154,6 +156,9 @@ function wire() {
       toast(err.message);
     }
   });
+
+  wireImport();
+  $("#import-open").addEventListener("click", () => openImport(state.settings, loadBooks));
 
   const dlg = $("#add-dialog");
   $("#add-open").addEventListener("click", () => { $("#add-form").reset(); fillSelects(); dlg.showModal(); });

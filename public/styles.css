@@ -85,3 +85,22 @@ dialog label { display: grid; gap: 4px; color: var(--muted); font-size: 0.9rem; 
   max-width: calc(100vw - 32px);
 }
 .toast[hidden] { display: none; }
+
+/* Import screen */
+#import-view h2 { margin: 0; }
+#import-files { margin: 8px 0; }
+.import-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+#import-progress { width: 100%; height: 10px; margin: 8px 0; accent-color: var(--accent); }
+.import-file { margin-top: 24px; }
+.import-file h2 { margin-bottom: 8px; font-size: 1.05rem; word-break: break-word; }
+.import-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 8px; }
+.import-options label { display: grid; gap: 4px; color: var(--muted); font-size: 0.9rem; }
+.flag { color: var(--accent); font-size: 0.85rem; }
+.import-rows li.skipped { opacity: 0.45; }
+.keep { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; color: var(--muted); min-height: 44px; }
+.keep input { width: 22px; height: 22px; min-height: 0; }
+#import-past-head { margin-top: 32px; }
+.credit { text-align: center; margin-top: 24px; font-size: 0.8rem; }
+.credit a { color: var(--muted); }
+.past-imports { list-style: none; margin: 0; padding: 0; }
+.past-imports li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
