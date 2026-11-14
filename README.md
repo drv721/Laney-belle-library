@@ -7,9 +7,24 @@ A home-screen web app for her books. One Cloudflare Worker serves the app and it
 - `migrations/0001_initial.sql`: every table the Christmas plan needs. Books, her copies, statuses, lists (owned, wish list, borrowed, previously owned), collections, tags, custom fields, a change log, and import tables that keep every original Libib row.
 - `src/index.js`: the API. Add, edit, remove (hidden, never erased), restore, search, filter, rename a status, export a spreadsheet. Every change is written to the change log. It checks the Access sign-in on every request and only lets the two allowed emails in.
 - `src/backup.js`: the nightly copy to R2, deleting anything older than the newest 30.
-- `public/`: the app itself, dark theme, list or cover view, add a book by hand, tap a status to change it, remove with undo, a Recently removed view.
+- `public/`: the app itself, dark theme, list or cover view, add a book by hand, tap a status to change it, remove with undo, a Recently removed view, and the Libib import.
 
 Statuses start as Libib's four: Not begun, In progress, Completed, Abandoned. Books store a fixed code, so renaming a status never touches a book.
+
+## Importing from Libib (weekend 2, built early)
+
+- In Libib, export each collection as a spreadsheet. Libib makes one file per collection.
+- In the app, tap Import from Libib and pick one or more files. The phone or iPad reads them; nothing is saved yet.
+- Each file gets a list (owned, wish list, borrowed, previously owned; guessed from the file name) and a collection name.
+- Every row shows with its cover and anything worth a look: duplicates inside a file, across files, or already in the library, and values that didn't fit (kept as written, never guessed).
+- Duplicates are only skipped when she unticks them, or taps Skip duplicates and checks the result.
+- Import saves 50 books at a time. Every original row is kept in `libib_rows`. Past imports can each be undone, which moves their books to Recently removed.
+- Libib's "group" column goes in as a tag for now.
+- Files: `public/libib-map.js` (reads the file), `public/import.js` (the screen), `src/import.js` (saving and undo), `src/covers.js` (covers). Tests: `npm test`.
+
+Covers come from Open Library, about one request a second, 25 books per request, stored by cover ID (their rules allow that without the ISBN limit). A book added by hand with an ISBN gets its cover the same way. Optional: add `"OL_CONTACT": "an email"` under `vars` in `wrangler.jsonc` for Open Library's higher limit.
+
+No database change is needed for this, so no migration runs. Pull, then `npx wrangler deploy`.
 
 ## Rules for every change
 
