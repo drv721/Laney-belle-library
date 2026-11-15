@@ -15,6 +15,7 @@
     <h1>Library</h1>
     <div class="top-actions">
       <button id="view-toggle" class="ghost" aria-label="Switch between list and covers">Covers</button>
+      <button id="bulk-open" class="ghost">Bulk scan</button>
       <button id="add-open" class="primary">Add book</button>
     </div>
   </header>
@@ -58,6 +59,39 @@
     <ul id="import-past" class="past-imports"></ul>
   </section>
 
+  <section id="bulk-view" hidden>
+    <div class="top">
+      <h2>Bulk scan</h2>
+      <button id="bulk-close" class="ghost">Back to library</button>
+    </div>
+    <div id="bulk-scan-step">
+      <p class="muted">Scan each book in the pile. Nothing is saved until you tap Done scanning, look over the list and tap Add. The pile is kept on this device if you leave and come back.</p>
+      <div class="import-options">
+        <label>List <select id="bulk-list"></select></label>
+        <label>Status <select id="bulk-status"></select></label>
+        <label>Shelf location <input id="bulk-shelf" autocomplete="off"></label>
+      </div>
+      <label class="scan-label">Scan or type the ISBN
+        <input id="bulk-scan" inputmode="numeric" enterkeyhint="go" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="978...">
+      </label>
+      <p id="bulk-msg" class="muted" role="status"></p>
+      <div class="import-actions">
+        <button id="bulk-done" class="primary">Done scanning</button>
+        <button id="bulk-clear" class="ghost">Start over</button>
+      </div>
+    </div>
+    <div id="bulk-review-step" hidden>
+      <p id="bulk-summary" role="status"></p>
+      <div class="import-actions">
+        <button id="bulk-skip-dupes" class="ghost">Skip duplicates</button>
+        <button id="bulk-add" class="primary">Add</button>
+        <button id="bulk-back" class="ghost">Keep scanning</button>
+      </div>
+      <progress id="bulk-progress" hidden></progress>
+    </div>
+    <ul id="bulk-items" class="books list bulk-items"></ul>
+  </section>
+
   <p class="credit muted">Covers from <a href="https://openlibrary.org">Open Library</a></p>
 
   <dialog id="add-dialog">
@@ -67,7 +101,6 @@
         <input id="scan" inputmode="numeric" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="978..." autofocus>
       </label>
       <p id="scan-msg" class="muted" role="status"></p>
-      <label class="keep"><input type="checkbox" id="scan-quick"> Add each scan right away</label>
       <div id="scan-preview" class="scan-preview" hidden></div>
       <label>Title <input name="title" required autocomplete="off"></label>
       <label>Author <input name="author" placeholder="Separate more than one with a comma" autocomplete="off"></label>

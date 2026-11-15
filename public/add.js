@@ -4,27 +4,20 @@
 // focused box, usually followed by Enter. So the scan box reacts to Enter,
 // and also to a full, valid 13-digit ISBN arriving without one.
 // A scan looks the book up (Open Library, through the Worker) and fills the
-// form for her to check. With "Add each scan right away" on, a book that was
-// found and isn't already in the library is saved straight away instead.
+// form for her to check. For a pile of books, Bulk scan (public/bulk.js)
+// collects the scans and shows duplicates once she's done.
 
 import { readScan } from "./isbn.js";
+import { attachScanBox } from "./scanbox.js";
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const AUTO_SCAN_MS = 250; // a scanner types a whole barcode well inside this
 
-export function wireAdd({ api, toast, fillSelects, onChange, readPref, savePref }) {
+export function wireAdd({ api, toast, fillSelects, onChange }) {
   const dlg = $("#add-dialog");
   const form = $("#add-form");
   const scan = $("#scan");
-  const quick = $("#scan-quick");
-  const add = { found: null, seq: 0, timer: null };
-
-  quick.checked = readPref("scanQuick", "0") === "1";
-  quick.addEventListener("change", () => {
-    savePref("scanQuick", quick.checked ? "1" : "0");
-    scan.focus();
-  });
+  const add = { found: null, seq: 0 };
 
   const msg = (text) => ($("#scan-msg").textContent = text || "");
 
@@ -81,11 +74,8 @@ export function wireAdd({ api, toast, fillSelects, onChange, readPref, savePref 
     return saved;
   }
 
-  async function handleScan(raw) {
-    clearTimeout(add.timer);
-    const read = readScan(raw);
+  async function handleScan(read, raw) {
     if (read.kind === "partial") { msg(raw.trim() ? "Type the whole ISBN, 10 or 13 digits." : ""); return; }
-    scan.value = "";
     if (read.kind !== "isbn") { msg(read.message); return; }
 
     const seq = ++add.seq;
@@ -106,51 +96,21 @@ export function wireAdd({ api, toast, fillSelects, onChange, readPref, savePref 
       ? `Already in the library: ${r.in_library.map((c) => `${c.title} (${c.list}, ${c.status})`).join("; ")}. Save adds another copy.`
       : "";
 
-    if (r.book) {
-      form.elements.title.value = r.book.title;
-      form.elements.author.value = r.book.authors.join(", ");
-      preview(r.book);
-    }
-
-    if (quick.checked && r.book && !already) {
-      try {
-        const saved = await save(bodyFromForm());
-        log(`Added ${saved.title}`, saved.id);
-        msg(`Added ${saved.title}. Ready for the next one.`);
-        clearBook();
-      } catch (err) {
-        msg(err.message);
-      }
-      return;
-    }
-
     if (!r.book) {
       const why = r.lookup_failed
         ? "Couldn't reach the book lookup just now."
         : "Open Library doesn't have this one.";
       msg(`${why} Type the title and author, then Save.${already ? " " + already : ""}`);
-      if (quick.checked) log(`Not added, needs a title: ${r.isbn13}`);
-      // Under a scanner, focus stays in the scan box; on a phone, jump to the title.
-      if (!quick.checked) form.elements.title.focus();
+      form.elements.title.focus();
       return;
     }
+    form.elements.title.value = r.book.title;
+    form.elements.author.value = r.book.authors.join(", ");
+    preview(r.book);
     msg(already || "Check the details, then Save.");
-    if (quick.checked && already) log(`Not added, already in the library: ${r.book.title}`);
   }
 
-  scan.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault(); // Enter here must look up, never submit the form
-      handleScan(scan.value);
-    }
-  });
-  scan.addEventListener("input", () => {
-    clearTimeout(add.timer);
-    const digits = scan.value.replace(/[^0-9]/g, "");
-    if (digits.length >= 13 && readScan(digits).kind === "isbn") {
-      add.timer = setTimeout(() => handleScan(scan.value), AUTO_SCAN_MS);
-    }
-  });
+  attachScanBox(scan, handleScan);
 
   $("#scan-log").addEventListener("click", async (e) => {
     const id = e.target.dataset.undo;
@@ -168,7 +128,6 @@ export function wireAdd({ api, toast, fillSelects, onChange, readPref, savePref 
 
   $("#add-open").addEventListener("click", () => {
     form.reset();
-    quick.checked = readPref("scanQuick", "0") === "1";
     clearBook();
     msg("");
     $("#scan-log").innerHTML = "";

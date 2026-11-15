@@ -3,6 +3,7 @@
 
 import { openImport, wireImport } from "./import.js";
 import { wireAdd } from "./add.js";
+import { openBulk, wireBulk } from "./bulk.js";
 
 const $ = (sel) => document.querySelector(sel);
 const state = {
@@ -161,7 +162,9 @@ function wire() {
   wireImport();
   $("#import-open").addEventListener("click", () => openImport(state.settings, loadBooks));
 
-  wireAdd({ api, toast, fillSelects, onChange: loadBooks, readPref, savePref });
+  wireAdd({ api, toast, fillSelects, onChange: loadBooks });
+  wireBulk({ api, onChange: loadBooks });
+  $("#bulk-open").addEventListener("click", () => openBulk(state.settings));
 }
 
 function fillSelects() {
