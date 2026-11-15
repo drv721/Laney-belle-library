@@ -26,6 +26,18 @@ Covers come from Open Library, about one request a second, 25 books per request,
 
 No database change is needed for this, so no migration runs. Pull, then `npx wrangler deploy`.
 
+## Scan to add
+
+- Tap Add book. The ISBN box at the top has the cursor, so a Bluetooth scanner in keyboard mode types straight into it. Typing an ISBN (10 or 13 digits) and pressing Enter does the same.
+- The app looks the book up on Open Library and fills in the title, author and cover for her to check, then Save. Save and scan next keeps the dialog open and keeps the status, list and shelf she picked.
+- Add each scan right away (a tick box, remembered on each device) saves every scan that was found and isn't already in the library. Anything not saved is listed in the dialog with the reason, and each saved one has Undo.
+- A book that's already in the library is never added on its own. She sees which copy is there and can still Save to add another copy.
+- A 12-digit store barcode (UPC, on many mass-market paperbacks) gets a note to scan or type the ISBN instead. A barcode with a price add-on is trimmed to the ISBN.
+- A book Open Library doesn't have keeps its ISBN and waits for her to type the title.
+- Files: `public/add.js` (the dialog), `public/isbn.js` (ISBN checks, shared with the import), `src/covers.js` (`lookupBook`), route `GET /api/lookup?isbn=` in `src/index.js` (saves nothing). Tests: `npm test`.
+
+No database change, so no migration. Pull, then `npx wrangler deploy`.
+
 ## Rules for every change
 
 1. Structure changes only through a new numbered file in `migrations/`. Never edit a migration that has already run.

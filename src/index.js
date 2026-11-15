@@ -3,7 +3,8 @@
 
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { backupToR2 } from "./backup.js";
-import { lookupCovers, MAX_ISBNS_PER_CALL } from "./covers.js";
+import { lookupCovers, lookupBook, isCoverUrl, MAX_ISBNS_PER_CALL } from "./covers.js";
+import { readScan } from "../public/isbn.js";
 import { libraryKeys, startImport, importRows, listImports, undoImport } from "./import.js";
 
 const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8" };
@@ -141,6 +142,9 @@ async function addBook(env, by, body) {
   if (!book.title || !String(book.title).trim()) return fail(400, "A title is needed.");
   book.title = String(book.title).trim();
   if (!book.authors) book.authors = "[]";
+  // Only Open Library cover addresses are kept, so the app never loads images from elsewhere.
+  if ("cover_url" in book && !isCoverUrl(book.cover_url)) delete book.cover_url;
+  const source = body.source === "openlibrary" ? "openlibrary" : "manual";
 
   // A book added with an ISBN gets its cover from Open Library. If that
   // lookup fails, the book still saves without a cover.
@@ -162,8 +166,8 @@ async function addBook(env, by, body) {
   const iCols = Object.keys(item);
   const stmts = [
     env.DB.prepare(
-      `INSERT INTO books (id, source, ${bCols.join(", ")}) VALUES (?, 'manual', ${bCols.map(() => "?").join(", ")})`
-    ).bind(bookId, ...bCols.map((c) => book[c])),
+      `INSERT INTO books (id, source, ${bCols.join(", ")}) VALUES (?, ?, ${bCols.map(() => "?").join(", ")})`
+    ).bind(bookId, source, ...bCols.map((c) => book[c])),
     env.DB.prepare(
       `INSERT INTO shelf_items (id, book_id, created_by, updated_by${iCols.map((c) => ", " + c).join("")})
        VALUES (?, ?, ?, ?${iCols.map(() => ", ?").join("")})`
@@ -307,6 +311,28 @@ async function handleApi(request, env) {
       console.error("covers", err);
       return fail(502, "Covers aren't available right now. The import still works without them.");
     }
+  }
+
+  // Scan-to-add: /api/lookup?isbn=... gives the book's details from Open
+  // Library and any copies already in the library. It saves nothing.
+  if (path === "/api/lookup" && method === "GET") {
+    const scan = readScan(url.searchParams.get("isbn"));
+    if (scan.kind !== "isbn") return fail(400, scan.message || "Type the whole ISBN.");
+    const { results } = await env.DB.prepare(
+      `SELECT s.id, b.title, l.label AS list, st.label AS status
+         FROM shelf_items s JOIN books b ON b.id = s.book_id
+         JOIN lists l ON l.code = s.list_code JOIN statuses st ON st.code = s.status_code
+        WHERE s.deleted_at IS NULL AND (b.isbn13 = ? OR b.isbn10 = ?)`
+    ).bind(scan.isbn13, scan.isbn10 ?? "").all();
+    let found = null;
+    let lookupFailed = false;
+    try {
+      found = await lookupBook(env, scan.isbn13);
+    } catch (err) {
+      console.error("lookup", err);
+      lookupFailed = true;
+    }
+    return json({ isbn13: scan.isbn13, isbn10: scan.isbn10, book: found, lookup_failed: lookupFailed, in_library: results });
   }
 
   // Imports

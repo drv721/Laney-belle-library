@@ -41,3 +41,30 @@ export async function lookupCovers(env, isbns) {
   }
   return out;
 }
+
+// One book's details by ISBN-13, for scan-to-add. Returns null when Open
+// Library doesn't have it. Field names are from openlibrary.org/dev/docs/api/books
+// (jscmd=data): title, subtitle, authors[].name, publishers[].name,
+// publish_date, number_of_pages, cover.{small,medium,large}.
+export async function lookupBook(env, isbn13) {
+  if (!/^\d{13}$/.test(isbn13)) return null;
+  const url = `https://openlibrary.org/api/books?format=json&jscmd=data&bibkeys=ISBN:${isbn13}`;
+  const res = await fetch(url, { headers: { "User-Agent": userAgent(env), Accept: "application/json" } });
+  if (!res.ok) throw new Error(`Open Library answered ${res.status}`);
+  const d = (await res.json())[`ISBN:${isbn13}`];
+  if (!d || typeof d.title !== "string") return null;
+  const str = (v, max) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
+  const names = (list) =>
+    Array.isArray(list) ? list.map((a) => str(a?.name, 200)).filter(Boolean).slice(0, 20) : [];
+  const any = d.cover?.medium || d.cover?.large || d.cover?.small;
+  const m = typeof any === "string" && any.match(COVER_URL);
+  return {
+    title: str(d.title, 500),
+    subtitle: str(d.subtitle, 500),
+    authors: names(d.authors),
+    publisher: names(d.publishers)[0] ?? null,
+    publish_date: str(d.publish_date, 40),
+    pages: Number.isInteger(d.number_of_pages) && d.number_of_pages > 0 ? d.number_of_pages : null,
+    cover_url: m ? `https://covers.openlibrary.org/b/id/${m[1]}-M.jpg` : null,
+  };
+}

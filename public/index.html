@@ -63,6 +63,12 @@
   <dialog id="add-dialog">
     <form id="add-form" method="dialog">
       <h2>Add a book</h2>
+      <label>Scan or type the ISBN
+        <input id="scan" inputmode="numeric" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="978..." autofocus>
+      </label>
+      <p id="scan-msg" class="muted" role="status"></p>
+      <label class="keep"><input type="checkbox" id="scan-quick"> Add each scan right away</label>
+      <div id="scan-preview" class="scan-preview" hidden></div>
       <label>Title <input name="title" required autocomplete="off"></label>
       <label>Author <input name="author" placeholder="Separate more than one with a comma" autocomplete="off"></label>
       <label>ISBN <input name="isbn" inputmode="numeric" autocomplete="off"></label>
@@ -70,9 +76,11 @@
       <label>List <select name="list_code" id="add-list"></select></label>
       <label>Shelf location <input name="shelf_location" autocomplete="off"></label>
       <div class="dialog-actions">
-        <button type="button" id="add-cancel" class="ghost">Cancel</button>
-        <button type="submit" class="primary">Save</button>
+        <button type="button" id="add-cancel" class="ghost">Done</button>
+        <button type="submit" value="next" class="ghost">Save and scan next</button>
+        <button type="submit" value="close" class="primary">Save</button>
       </div>
+      <ul id="scan-log" class="scan-log" aria-label="Scanned this time"></ul>
     </form>
   </dialog>
 

@@ -2,6 +2,7 @@
 // Everything it shows comes from /api, so every device sees the same library.
 
 import { openImport, wireImport } from "./import.js";
+import { wireAdd } from "./add.js";
 
 const $ = (sel) => document.querySelector(sel);
 const state = {
@@ -160,31 +161,7 @@ function wire() {
   wireImport();
   $("#import-open").addEventListener("click", () => openImport(state.settings, loadBooks));
 
-  const dlg = $("#add-dialog");
-  $("#add-open").addEventListener("click", () => { $("#add-form").reset(); fillSelects(); dlg.showModal(); });
-  $("#add-cancel").addEventListener("click", () => dlg.close());
-  $("#add-form").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const f = new FormData(e.target);
-    const isbn = String(f.get("isbn") || "").replace(/[^0-9Xx]/g, "");
-    const body = {
-      title: f.get("title"),
-      authors: String(f.get("author") || "").split(",").map((s) => s.trim()).filter(Boolean),
-      status_code: f.get("status_code"),
-      list_code: f.get("list_code"),
-      shelf_location: f.get("shelf_location") || null,
-    };
-    if (isbn.length === 13) body.isbn13 = isbn;
-    else if (isbn.length === 10) body.isbn10 = isbn.toUpperCase();
-    try {
-      const saved = await api("/api/books", { method: "POST", body });
-      dlg.close();
-      await loadBooks();
-      toast(`Added ${saved.title}`);
-    } catch (err) {
-      toast(err.message);
-    }
-  });
+  wireAdd({ api, toast, fillSelects, onChange: loadBooks, readPref, savePref });
 }
 
 function fillSelects() {
