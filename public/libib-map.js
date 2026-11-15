@@ -7,6 +7,8 @@
 // Libib doesn't document its export columns, so the first real export
 // decides: any header not listed here is kept in the raw row and reported.
 
+import { isbn13Valid, isbn10Valid, isbn10To13 } from "./isbn.js";
+
 const STATUS_BY_LABEL = {
   "not begun": "not_begun",
   "in progress": "in_progress",
@@ -65,22 +67,6 @@ export function parseCsv(text) {
   }
   if (field !== "" || row.length) { row.push(field); rows.push(row); }
   return rows.filter((r) => r.some((v) => v.trim() !== ""));
-}
-
-function isbn13Valid(d) {
-  if (!/^\d{13}$/.test(d)) return false;
-  const sum = [...d].reduce((a, ch, i) => a + Number(ch) * (i % 2 ? 3 : 1), 0);
-  return sum % 10 === 0;
-}
-function isbn10Valid(d) {
-  if (!/^\d{9}[\dX]$/.test(d)) return false;
-  const sum = [...d].reduce((a, ch, i) => a + (ch === "X" ? 10 : Number(ch)) * (10 - i), 0);
-  return sum % 11 === 0;
-}
-function isbn10To13(d) {
-  const base = "978" + d.slice(0, 9);
-  const sum = [...base].reduce((a, ch, i) => a + Number(ch) * (i % 2 ? 3 : 1), 0);
-  return base + ((10 - (sum % 10)) % 10);
 }
 
 // Keeps YYYY-MM-DD, YYYY-MM or YYYY as they are; anything else is kept

@@ -26,6 +26,19 @@ Covers come from Open Library, about one request a second, 25 books per request,
 
 No database change is needed for this, so no migration runs. Pull, then `npx wrangler deploy`.
 
+## Scan to add
+
+- Tap Add book. The ISBN box at the top has the cursor, so a Bluetooth scanner in keyboard mode types straight into it. Typing an ISBN (10 or 13 digits) and pressing Enter does the same.
+- The app looks the book up on Open Library and fills in the title, author and cover for her to check, then Save. Save and scan next keeps the dialog open and keeps the status, list and shelf she picked.
+- A book that's already in the library shows which copy is there. Save still adds another copy if she means to.
+- A 12-digit store barcode (UPC, on many mass-market paperbacks) gets a note to scan or type the ISBN instead. A barcode with a price add-on is trimmed to the ISBN.
+- A book Open Library doesn't have keeps its ISBN and waits for her to type the title.
+- **Bulk scan** (button at the top) is for a pile. She picks the list, status and shelf once, then scans book after book with no interruptions. Each scan is only looked up (one a second, Open Library's pace), never saved. Done scanning shows the whole pile with what needs a look: already in the library, scanned twice, or not found (she types the title right in the list). Duplicates stay ticked unless she unticks them or taps Skip duplicates, the same as the Libib import. Add saves the ticked ones, and Undo all puts them in Recently removed.
+- The pile is kept in the device's storage until it's added, so a reload, the iPad sleeping or leaving the screen doesn't lose scans. Remove takes off a mis-scan; Start over clears the pile.
+- Files: `public/add.js` (the dialog), `public/bulk.js` (bulk scan), `public/scanbox.js` (scanner input), `public/isbn.js` (ISBN checks, shared with the import), `src/covers.js` (`lookupBook`), route `GET /api/lookup?isbn=` in `src/index.js` (saves nothing). Tests: `npm test`.
+
+No database change, so no migration. Pull, then `npx wrangler deploy`.
+
 ## Rules for every change
 
 1. Structure changes only through a new numbered file in `migrations/`. Never edit a migration that has already run.
