@@ -6,6 +6,7 @@
 // A scan looks the book up (Open Library, through the Worker) and fills the
 // form for her to check. For a pile of books, Bulk scan (public/bulk.js)
 // collects the scans and shows duplicates once she's done.
+// A book with no barcode can be found by title instead (Find by title).
 
 import { readScan } from "./isbn.js";
 import { attachScanBox } from "./scanbox.js";
@@ -18,14 +19,14 @@ export function wireAdd({ api, toast, fillSelects, onChange }) {
   const dlg = $("#add-dialog");
   const form = $("#add-form");
   const scan = $("#scan");
-  const add = { found: null, seq: 0 };
+  const add = { found: null, picked: null, seq: 0 };
 
   const msg = (text) => ($("#scan-msg").textContent = text || "");
 
-  function preview(book) {
+  function preview(book, note) {
     const box = $("#scan-preview");
     if (!book) { box.hidden = true; box.innerHTML = ""; return; }
-    const bits = [book.publisher, book.publish_date, book.pages ? `${book.pages} pages` : null].filter(Boolean).join(" · ");
+    const bits = note ?? [book.publisher, book.publish_date, book.pages ? `${book.pages} pages` : null].filter(Boolean).join(" · ");
     box.innerHTML = `${book.cover_url ? `<img class="cover" src="${esc(book.cover_url)}" alt="">` : `<div class="cover" aria-hidden="true">No cover</div>`}
       <div><div class="title">${esc(book.title)}</div><div class="author">${esc(book.authors.join(", "))}</div>
       <div class="muted">${esc(bits)}</div></div>`;
@@ -43,7 +44,20 @@ export function wireAdd({ api, toast, fillSelects, onChange }) {
   function clearBook() {
     for (const name of ["title", "author", "isbn"]) form.elements[name].value = "";
     add.found = null;
+    add.picked = null;
     preview(null);
+    clearResults();
+  }
+
+  const yearNote = (b) => [b.first_year ? `First published ${b.first_year}` : null, b.cover_url ? "cover may be another edition" : null].filter(Boolean).join(" · ");
+  const copiesNote = (list) =>
+    list.length ? `Already in the library: ${list.map((c) => `${c.title} (${c.list}, ${c.status})`).join("; ")}. Save adds another copy.` : "";
+
+  function clearResults() {
+    $("#title-results").innerHTML = "";
+    $("#title-results").hidden = true;
+    $("#title-msg").textContent = "";
+    add.results = [];
   }
 
   function bodyFromForm() {
@@ -65,6 +79,12 @@ export function wireAdd({ api, toast, fillSelects, onChange }) {
         for (const k of ["subtitle", "publisher", "publish_date", "pages", "cover_url"]) if (found.book[k]) body[k] = found.book[k];
         body.source = "openlibrary";
       }
+    }
+    // A book picked from Find by title brings its subtitle and cover, while the title is still the picked one.
+    const picked = add.picked;
+    if (picked && !body.source && body.title === picked.title) {
+      for (const k of ["subtitle", "cover_url"]) if (picked[k]) body[k] = picked[k];
+      body.source = "openlibrary";
     }
     return body;
   }
@@ -112,6 +132,57 @@ export function wireAdd({ api, toast, fillSelects, onChange }) {
   }
 
   attachScanBox(scan, handleScan);
+
+  // ---- Find by title ----
+  async function findByTitle() {
+    const title = form.elements.title.value.trim();
+    const author = form.elements.author.value.split(",")[0].trim();
+    const note = (t) => ($("#title-msg").textContent = t);
+    if (title.length < 2) { note("Type at least part of the title first."); form.elements.title.focus(); return; }
+    const seq = ++add.seq;
+    $("#title-results").hidden = true;
+    note("Searching Open Library...");
+    let r;
+    try {
+      r = await api(`/api/search?${new URLSearchParams({ title, author })}`);
+    } catch (err) {
+      if (seq === add.seq) note(err.message);
+      return;
+    }
+    if (seq !== add.seq) return;
+    add.results = r.results;
+    const typed = copiesNote(r.typed_in_library);
+    if (r.search_failed) { note(`Couldn't reach the book search just now. You can still Save what you typed.${typed ? " " + typed : ""}`); return; }
+    if (!r.results.length) {
+      note(`No matches on Open Library${author ? " for that title and author" : ""}. Check the spelling, try fewer words, or Save what you typed.${typed ? " " + typed : ""}`);
+      return;
+    }
+    note(`${r.results.length === 1 ? "1 match" : `${r.results.length} matches`}. Tap the right one, or keep what you typed.`);
+    $("#title-results").innerHTML = r.results.map((b, i) => `<li>
+        ${b.cover_url ? `<img class="cover" src="${esc(b.cover_url)}" alt="" loading="lazy">` : `<div class="cover" aria-hidden="true">No cover</div>`}
+        <div><div class="title">${esc(b.title)}${b.subtitle ? `<span class="muted">: ${esc(b.subtitle)}</span>` : ""}</div>
+        <div class="author">${esc(b.authors.join(", "))}</div>
+        <div class="muted">${esc([b.first_year ? `First published ${b.first_year}` : null, b.in_library.length ? "Already in the library" : null].filter(Boolean).join(" · "))}</div></div>
+        <button type="button" class="ghost" data-pick="${i}">Use this</button>
+      </li>`).join("");
+    $("#title-results").hidden = false;
+  }
+
+  $("#title-find").addEventListener("click", findByTitle);
+  $("#title-results").addEventListener("click", (e) => {
+    const i = e.target.dataset.pick;
+    if (i === undefined) return;
+    const b = add.results[Number(i)];
+    if (!b) return;
+    form.elements.title.value = b.title;
+    if (b.authors.length) form.elements.author.value = b.authors.join(", ");
+    add.picked = b;
+    $("#title-results").innerHTML = "";
+    $("#title-results").hidden = true;
+    $("#title-msg").textContent = "";
+    preview(b, yearNote(b));
+    msg(copiesNote(b.in_library) || "Check the details, then Save.");
+  });
   // The camera closes after each book. If she used it, Save and scan next opens it again.
   let usedCamera = false;
   const camera = attachCamera({

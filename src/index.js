@@ -3,7 +3,7 @@
 
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { backupToR2 } from "./backup.js";
-import { lookupCovers, lookupBook, isCoverUrl, MAX_ISBNS_PER_CALL } from "./covers.js";
+import { lookupCovers, lookupBook, searchBooks, isCoverUrl, MAX_ISBNS_PER_CALL } from "./covers.js";
 import { readScan } from "../public/isbn.js";
 import { libraryKeys, startImport, importRows, listImports, undoImport } from "./import.js";
 
@@ -333,6 +333,36 @@ async function handleApi(request, env) {
       lookupFailed = true;
     }
     return json({ isbn13: scan.isbn13, isbn10: scan.isbn10, book: found, lookup_failed: lookupFailed, in_library: results });
+  }
+
+  // Title search, for books with no barcode: /api/search?title=...&author=...
+  // gives Open Library's matches, each with any copies already in the library
+  // under the same title. It saves nothing.
+  if (path === "/api/search" && method === "GET") {
+    const title = (url.searchParams.get("title") || "").trim().slice(0, 200);
+    const author = (url.searchParams.get("author") || "").trim().slice(0, 200);
+    if (title.length < 2) return fail(400, "Type at least part of the title.");
+    let results = [];
+    let searchFailed = false;
+    try {
+      results = await searchBooks(env, title, author);
+    } catch (err) {
+      console.error("search", err);
+      searchFailed = true;
+    }
+    const titles = [...new Set([title, ...results.map((r) => r.title)].map((t) => t.toLowerCase()))];
+    const { results: have } = await env.DB.prepare(
+      `SELECT lower(b.title) AS t, s.id, b.title, l.label AS list, st.label AS status
+         FROM shelf_items s JOIN books b ON b.id = s.book_id
+         JOIN lists l ON l.code = s.list_code JOIN statuses st ON st.code = s.status_code
+        WHERE s.deleted_at IS NULL AND lower(b.title) IN (${titles.map(() => "?").join(", ")})`
+    ).bind(...titles).all();
+    const copies = (t) => have.filter((h) => h.t === t.toLowerCase()).map(({ id, title, list, status }) => ({ id, title, list, status }));
+    return json({
+      results: results.map((r) => ({ ...r, in_library: copies(r.title) })),
+      typed_in_library: copies(title),
+      search_failed: searchFailed,
+    });
   }
 
   // Imports
