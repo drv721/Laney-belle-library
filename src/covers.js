@@ -68,3 +68,35 @@ export async function lookupBook(env, isbn13) {
     cover_url: m ? `https://covers.openlibrary.org/b/id/${m[1]}-M.jpg` : null,
   };
 }
+
+// Title search, for books with no barcode. openlibrary.org/dev/docs/api/search:
+// search.json with title= and author=, and fields= to keep the answer small.
+// It returns works, not editions, so we take only what's true of every edition
+// (title, authors, first year) and the work's cover, which may show another
+// edition. key, title, author_name, first_publish_year, cover_i and
+// edition_count are in the docs' sample; subtitle is in their schema, which the
+// docs say may change, so it's optional.
+export const SEARCH_LIMIT = 8;
+
+export async function searchBooks(env, title, author) {
+  const q = new URLSearchParams({ title, fields: "key,title,subtitle,author_name,first_publish_year,cover_i,edition_count", limit: String(SEARCH_LIMIT) });
+  if (author) q.set("author", author);
+  const res = await fetch(`https://openlibrary.org/search.json?${q}`, {
+    headers: { "User-Agent": userAgent(env), Accept: "application/json" },
+  });
+  if (!res.ok) throw new Error(`Open Library answered ${res.status}`);
+  const data = await res.json();
+  const str = (v, max) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
+  const docs = Array.isArray(data?.docs) ? data.docs : [];
+  return docs
+    .map((d) => ({
+      title: str(d.title, 500),
+      subtitle: str(d.subtitle, 500),
+      authors: Array.isArray(d.author_name) ? d.author_name.map((a) => str(a, 200)).filter(Boolean).slice(0, 20) : [],
+      first_year: Number.isInteger(d.first_publish_year) ? d.first_publish_year : null,
+      editions: Number.isInteger(d.edition_count) ? d.edition_count : null,
+      cover_url: Number.isInteger(d.cover_i) && d.cover_i > 0 ? `https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg` : null,
+    }))
+    .filter((b) => b.title)
+    .slice(0, SEARCH_LIMIT);
+}
