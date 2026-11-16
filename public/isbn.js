@@ -33,12 +33,17 @@ export function isbn13To10(d) {
 //   kind "upc"     a 12-digit UPC, which is a price code, not the ISBN
 //   kind "partial" still being typed
 //   kind "bad"     wrong length or a failed check digit
+const STORE_BARCODE = "That's a store barcode, not the ISBN. Look for the barcode that starts with 978, often inside the front cover, or type the ISBN.";
+
 export function readScan(raw) {
   const s = String(raw ?? "").toUpperCase().replace(/[^0-9X]/g, "");
   // A barcode with its 2 or 5 digit price add-on comes through as 15 or 18 digits.
   const digits = /^97[89]\d{12}(\d{3})?$/.test(s) && (s.length === 15 || s.length === 18) ? s.slice(0, 13) : s;
   if (digits.length === 13) {
     if (isbn13Valid(digits) && /^97[89]/.test(digits)) return { kind: "isbn", isbn13: digits, isbn10: isbn13To10(digits) };
+    // A real 13-digit product barcode that isn't a book number. Camera readers also
+    // report a 12-digit UPC this way, with a 0 in front.
+    if (isbn13Valid(digits)) return { kind: "upc", message: STORE_BARCODE };
     return { kind: "bad", message: "That number isn't a valid ISBN. Check it and try again." };
   }
   if (digits.length === 10) {
@@ -46,7 +51,7 @@ export function readScan(raw) {
     return { kind: "bad", message: "That number isn't a valid ISBN. Check it and try again." };
   }
   if (digits.length === 12 && !digits.includes("X")) {
-    return { kind: "upc", message: "That's a store barcode, not the ISBN. Look for the barcode that starts with 978, often inside the front cover, or type the ISBN." };
+    return { kind: "upc", message: STORE_BARCODE };
   }
   if (digits.length < 13) return { kind: "partial" };
   return { kind: "bad", message: "That's too long for an ISBN. Check it and try again." };

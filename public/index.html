@@ -65,7 +65,7 @@
       <button id="bulk-close" class="ghost">Back to library</button>
     </div>
     <div id="bulk-scan-step">
-      <p class="muted">Scan each book in the pile. Nothing is saved until you tap Done scanning, look over the list and tap Add. The pile is kept on this device if you leave and come back.</p>
+      <p class="muted">Scan each book in the pile with the scanner or the camera. Nothing is saved until you tap Done scanning, look over the list and tap Add. The pile is kept on this device if you leave and come back.</p>
       <div class="import-options">
         <label>List <select id="bulk-list"></select></label>
         <label>Status <select id="bulk-status"></select></label>
@@ -74,6 +74,12 @@
       <label class="scan-label">Scan or type the ISBN
         <input id="bulk-scan" inputmode="numeric" enterkeyhint="go" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="978...">
       </label>
+      <button type="button" id="bulk-cam" class="ghost cam-open">Use camera</button>
+      <div id="bulk-cam-panel" class="cam" hidden>
+        <video data-cam-video playsinline muted></video>
+        <p data-cam-msg class="muted" role="status"></p>
+        <button type="button" data-cam-stop class="ghost">Stop camera</button>
+      </div>
       <p id="bulk-msg" class="muted" role="status"></p>
       <div class="import-actions">
         <button id="bulk-done" class="primary">Done scanning</button>
@@ -100,6 +106,12 @@
       <label>Scan or type the ISBN
         <input id="scan" inputmode="numeric" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="978..." autofocus>
       </label>
+      <button type="button" id="scan-cam" class="ghost cam-open">Use camera</button>
+      <div id="scan-cam-panel" class="cam" hidden>
+        <video data-cam-video playsinline muted></video>
+        <p data-cam-msg class="muted" role="status"></p>
+        <button type="button" data-cam-stop class="ghost">Close camera</button>
+      </div>
       <p id="scan-msg" class="muted" role="status"></p>
       <div id="scan-preview" class="scan-preview" hidden></div>
       <label>Title <input name="title" required autocomplete="off"></label>

@@ -31,7 +31,8 @@ test("bad check digit, UPC, partial, too long", () => {
   assert.equal(readScan("012345678905").kind, "upc");
   assert.equal(readScan("97809802").kind, "partial");
   assert.equal(readScan("97809802004471234567").kind, "bad");
-  assert.equal(readScan("4006381333931").kind, "bad"); // a valid EAN that isn't a book
+  assert.equal(readScan("4006381333931").kind, "upc"); // a valid EAN that isn't a book
+  assert.equal(readScan("0012345678905").kind, "upc"); // a UPC as a camera reader reports it
 });
 
 test("lookupBook reads Open Library's data shape", async () => {
