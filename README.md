@@ -39,6 +39,17 @@ No database change is needed for this, so no migration runs. Pull, then `npx wra
 
 No database change, so no migration. Pull, then `npx wrangler deploy`.
 
+## Camera scanning
+
+- **Use camera** sits under the scan box in Add a book and in Bulk scan. It opens the back camera and reads the barcode on the book, then hands the number to the same code the scanner uses, so lookups, duplicate warnings and the review work the same way.
+- In Add a book the camera closes after one book. If she used it, Save and scan next opens it again for the next book. In Bulk scan it stays open and beeps for each book; holding the same book in view doesn't add it twice. Done scanning, Back to library and closing the dialog turn the camera off, and so does switching away from the app.
+- A store barcode (UPC, or any non-book barcode) gets the same "that's a store barcode" note as the scanner, and the camera keeps looking.
+- iPhone and iPad Safari have no built-in barcode reader, so the app carries one: `public/vendor/barcode-detector-3.2.3.js` (npm barcode-detector 3.2.3) and `public/vendor/zxing_reader-3.1.6.wasm` (npm zxing-wasm 3.1.6), both MIT, with the wasm built from zxing-cpp (Apache 2.0). Licenses are in `public/vendor/LICENSES.txt`. They load from the app itself the first time the camera opens (about 1 MB), never from another site. Browsers with their own reader, like Chrome on Android, use theirs.
+- The browser asks for camera permission the first time. If it was refused, the camera box says so and the scan box still works.
+- Files: `public/camera.js`. Tests: `test/camera.test.mjs` draws an ISBN barcode and reads it with the bundled reader.
+
+No database change, so no migration. Pull, then `npx wrangler deploy`.
+
 ## Rules for every change
 
 1. Structure changes only through a new numbered file in `migrations/`. Never edit a migration that has already run.

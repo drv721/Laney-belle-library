@@ -12,6 +12,7 @@
 // going to sleep or a reload doesn't lose any scans.
 
 import { attachScanBox } from "./scanbox.js";
+import { attachCamera } from "./camera.js";
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -287,6 +288,7 @@ export function wireBulk(deps) {
   updateOpenButton();
 
   attachScanBox($("#bulk-scan"), onScan);
+  const camera = attachCamera({ button: $("#bulk-cam"), panel: $("#bulk-cam-panel"), onScan, continuous: true });
   $("#bulk-list").addEventListener("change", (e) => { pile.list = e.target.value; save(); });
   $("#bulk-status").addEventListener("change", (e) => { pile.status = e.target.value; save(); });
   $("#bulk-shelf").addEventListener("input", (e) => { pile.shelf = e.target.value; save(); });
@@ -328,6 +330,7 @@ export function wireBulk(deps) {
   });
 
   $("#bulk-done").addEventListener("click", () => {
+    camera.stop();
     $("#bulk-done-note")?.remove();
     if (pile.items.some((i) => i.state === "pending" || i.state === "looking")) {
       pile.step = "waiting";
@@ -361,6 +364,7 @@ export function wireBulk(deps) {
   });
   document.addEventListener("click", (e) => { if (e.target.id === "bulk-undo") undoAll(); });
   $("#bulk-close").addEventListener("click", () => {
+    camera.stop();
     if (pile.step === "waiting") pile.step = "scan";
     save();
     $("#bulk-view").hidden = true;

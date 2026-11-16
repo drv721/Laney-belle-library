@@ -9,6 +9,7 @@
 
 import { readScan } from "./isbn.js";
 import { attachScanBox } from "./scanbox.js";
+import { attachCamera } from "./camera.js";
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -111,6 +112,14 @@ export function wireAdd({ api, toast, fillSelects, onChange }) {
   }
 
   attachScanBox(scan, handleScan);
+  // The camera closes after each book. If she used it, Save and scan next opens it again.
+  let usedCamera = false;
+  const camera = attachCamera({
+    button: $("#scan-cam"),
+    panel: $("#scan-cam-panel"),
+    onScan: (read, raw) => { usedCamera = true; handleScan(read, raw); },
+  });
+  dlg.addEventListener("close", () => camera.stop());
 
   $("#scan-log").addEventListener("click", async (e) => {
     const id = e.target.dataset.undo;
@@ -131,6 +140,7 @@ export function wireAdd({ api, toast, fillSelects, onChange }) {
     clearBook();
     msg("");
     $("#scan-log").innerHTML = "";
+    usedCamera = false;
     fillSelects();
     dlg.showModal();
     scan.focus();
@@ -146,7 +156,8 @@ export function wireAdd({ api, toast, fillSelects, onChange }) {
         log(`Added ${saved.title}`, saved.id);
         msg(`Added ${saved.title}. Ready for the next one.`);
         clearBook();
-        scan.focus();
+        if (usedCamera) camera.start();
+        else scan.focus();
       } else {
         dlg.close();
         toast(`Added ${saved.title}`);
