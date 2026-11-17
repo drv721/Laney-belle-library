@@ -52,7 +52,7 @@ No database change, so no migration. Pull, then `npx wrangler deploy`.
 
 ## Find by title (books with no barcode)
 
-- In Add a book, type the title (and the author if she knows it) and tap **Find by title**. It searches Open Library and shows up to 8 matches with covers. **Use this** fills the title, author, subtitle and cover; Save adds it. Nothing is saved by the search itself.
+- In Add a book, type the title (and the author if she knows it) and tap **Find by title**, or press Enter (the keyboard's Search key on a phone) in Title or Author. Enter there never saves; saving takes a Save button. It searches Open Library and shows up to 8 matches with covers. **Use this** fills the title, author, subtitle and cover; Save adds it. Nothing is saved by the search itself.
 - Open Library's search returns a work, not her exact edition, so only what's true of every edition comes in: title, subtitle, authors and the work's cover (marked "cover may be another edition"). Publisher, date and pages stay empty for her to type. If she changes the title after picking, the picked cover and subtitle don't ride along.
 - A match already in the library says so, the same as a scan. The check is by exact title, ignoring upper and lower case.
 - No match, or Open Library unreachable: she can still Save what she typed.
