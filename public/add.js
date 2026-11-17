@@ -169,6 +169,15 @@ export function wireAdd({ api, toast, fillSelects, onChange }) {
   }
 
   $("#title-find").addEventListener("click", findByTitle);
+  // Enter in Title or Author runs the search. Saving takes a tap on a Save button,
+  // so a half-typed title never goes in by accident.
+  for (const name of ["title", "author"]) {
+    form.elements[name].addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" || e.isComposing) return;
+      e.preventDefault();
+      findByTitle();
+    });
+  }
   $("#title-results").addEventListener("click", (e) => {
     const i = e.target.dataset.pick;
     if (i === undefined) return;
