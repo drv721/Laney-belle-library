@@ -10,6 +10,10 @@ import { sortByAuthor } from "./sort.js";
 import { KINDS, listStatement, createSection, renameSection, setSectionDeleted, checkSections, bulkSet } from "./sections.js";
 import { cleanTags, setTagStatements, bulkTag } from "./tags.js";
 import { libraryStats } from "./stats.js";
+import {
+  fieldsStatement, createField, renameField, setFieldDeleted, customValueStatements,
+  statusesStatement, createStatus, renameStatus, setStatusDeleted, statusIsLive,
+} from "./fields.js";
 
 const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8" };
 const json = (data, status = 200) =>
@@ -72,6 +76,9 @@ const ITEM_SELECT = `
          b.publish_date, b.pages, b.cover_url, b.description, b.source,
          (SELECT json_group_array(t.name) FROM shelf_item_tags st
             JOIN tags t ON t.id = st.tag_id WHERE st.shelf_item_id = s.id) AS tags,
+         (SELECT json_group_object(cv.field_id, cv.value) FROM custom_values cv
+            JOIN custom_fields cf ON cf.id = cv.field_id AND cf.deleted_at IS NULL
+           WHERE cv.shelf_item_id = s.id) AS custom,
          sc.name AS subcategory, lo.name AS location
   FROM shelf_items s JOIN books b ON b.id = s.book_id
   LEFT JOIN subcategories sc ON sc.id = s.subcategory_id AND sc.deleted_at IS NULL
@@ -83,6 +90,8 @@ function shapeItem(row) {
     ...row,
     authors: safeParse(row.authors, []),
     tags: safeParse(row.tags, []),
+    // Her own fields: { field id: value }, only the ones with something in them.
+    custom: safeParse(row.custom, {}) || {},
     // A removed subcategory or location reads as none until Undo brings it back.
     subcategory_id: row.subcategory ? row.subcategory_id : null,
     location_id: row.location ? row.location_id : null,
@@ -203,6 +212,7 @@ async function addBook(env, by, body) {
   const itemId = newId();
   const item = pick(body, ITEM_FIELDS);
   item.added_date ??= now().slice(0, 10);
+  if ("status_code" in item && !(await statusIsLive(env, item.status_code))) return fail(400, "That status isn't on the menu any more.");
   const sectionError = await checkSections(env, item, { collection_id: item.collection_id ?? "default" });
   if (sectionError) return fail(400, sectionError);
   let tags = [];
@@ -252,6 +262,13 @@ async function updateItem(env, by, id, body) {
   }
   const sectionError = await checkSections(env, item, before);
   if (sectionError) return fail(400, sectionError);
+  if ("status_code" in item && !(await statusIsLive(env, item.status_code))) return fail(400, "That status isn't on the menu any more.");
+  let customStmts = [];
+  if ("custom" in body) {
+    const c = await customValueStatements(env, id, body.custom);
+    if (c.error) return fail(400, c.error);
+    customStmts = c.stmts;
+  }
   let tags = null;
   if ("tags" in body) {
     const t = cleanTags(body.tags);
@@ -275,11 +292,10 @@ async function updateItem(env, by, id, body) {
       ).bind(...cols.map((c) => item[c]), now(), by, id)
     );
   }
-  if (tags) {
-    stmts.push(...setTagStatements(env, id, tags));
-    if (!Object.keys(item).length) {
-      stmts.push(env.DB.prepare("UPDATE shelf_items SET updated_at = ?, updated_by = ? WHERE id = ?").bind(now(), by, id));
-    }
+  if (tags) stmts.push(...setTagStatements(env, id, tags));
+  stmts.push(...customStmts);
+  if ((tags || customStmts.length) && !Object.keys(item).length) {
+    stmts.push(env.DB.prepare("UPDATE shelf_items SET updated_at = ?, updated_by = ? WHERE id = ?").bind(now(), by, id));
   }
   if (!stmts.length) return fail(400, "Nothing to change.");
   await env.DB.batch(stmts);
@@ -325,8 +341,12 @@ async function exportCsv(env) {
      JOIN collections c ON c.id = s.collection_id
      WHERE s.deleted_at IS NULL ORDER BY b.title COLLATE NOCASE`
   ).all();
-  const lines = [CSV_COLUMNS.join(",")];
-  for (const r of results.map(shapeItem)) lines.push(CSV_COLUMNS.map((c) => csvCell(r[c])).join(","));
+  // Her own fields go after the standard columns, under the names she gave them.
+  const { results: fields } = await fieldsStatement(env).all();
+  const lines = [[...CSV_COLUMNS, ...fields.map((f) => csvCell(f.name))].join(",")];
+  for (const r of results.map(shapeItem)) {
+    lines.push([...CSV_COLUMNS.map((c) => csvCell(r[c])), ...fields.map((f) => csvCell(r.custom[f.id]))].join(","));
+  }
   const day = now().slice(0, 10);
   return new Response(lines.join("\r\n"), {
     headers: {
@@ -353,13 +373,13 @@ async function handleApi(request, env) {
 
   if (path === "/api/settings" && method === "GET") {
     const [statuses, lists, collections, fields, tags, subcategories, locations] = await env.DB.batch([
-      env.DB.prepare("SELECT * FROM statuses ORDER BY sort_order"),
+      statusesStatement(env),
       env.DB.prepare("SELECT * FROM lists ORDER BY sort_order"),
       env.DB.prepare(
         "SELECT c.*, (SELECT COUNT(*) FROM shelf_items s WHERE s.collection_id = c.id AND s.deleted_at IS NULL) AS count " +
         "FROM collections c ORDER BY c.sort_order"
       ),
-      env.DB.prepare("SELECT * FROM custom_fields ORDER BY sort_order"),
+      fieldsStatement(env),
       env.DB.prepare(
         "SELECT t.name, COUNT(s.id) AS count FROM tags t JOIN shelf_item_tags st ON st.tag_id = t.id " +
         "JOIN shelf_items s ON s.id = st.shelf_item_id AND s.deleted_at IS NULL GROUP BY t.id ORDER BY t.name COLLATE NOCASE"
@@ -380,16 +400,26 @@ async function handleApi(request, env) {
 
   if (path === "/api/stats" && method === "GET") return json(await libraryStats(env));
 
-  // Rename a status label (the code, and so every book, stays the same).
-  let m = path.match(/^\/api\/statuses\/([a-z0-9_]+)$/);
-  if (m && method === "PATCH") {
-    if (!body.label || !String(body.label).trim()) return fail(400, "A name is needed.");
-    const before = await env.DB.prepare("SELECT * FROM statuses WHERE code = ?").bind(m[1]).first();
-    if (!before) return fail(404, "No such status.");
-    await env.DB.prepare("UPDATE statuses SET label = ? WHERE code = ?").bind(String(body.label).trim(), m[1]).run();
-    const after = await env.DB.prepare("SELECT * FROM statuses WHERE code = ?").bind(m[1]).first();
-    await logChange(env, email, "status", m[1], "update", before, after).run();
-    return json(after);
+  // Statuses and her own fields: add, rename, remove (hide) and bring back.
+  let m = path.match(/^\/api\/statuses(?:\/([a-z0-9_]{1,40})(\/restore)?)?$/);
+  if (m) {
+    const [, code, restore] = m;
+    let r;
+    if (!code && method === "POST") r = await createStatus(env, email, body, logChange);
+    else if (code && !restore && method === "PATCH") r = await renameStatus(env, email, code, body, logChange);
+    else if (code && !restore && method === "DELETE") r = await setStatusDeleted(env, email, code, true, logChange);
+    else if (code && restore && method === "POST") r = await setStatusDeleted(env, email, code, false, logChange);
+    if (r) return json(r.data, r.status);
+  }
+  m = path.match(/^\/api\/fields(?:\/([0-9a-f-]{36})(\/restore)?)?$/);
+  if (m) {
+    const [, id, restore] = m;
+    let r;
+    if (!id && method === "POST") r = await createField(env, email, body, logChange);
+    else if (id && !restore && method === "PATCH") r = await renameField(env, email, id, body, logChange);
+    else if (id && !restore && method === "DELETE") r = await setFieldDeleted(env, email, id, true, logChange);
+    else if (id && restore && method === "POST") r = await setFieldDeleted(env, email, id, false, logChange);
+    if (r) return json(r.data, r.status);
   }
 
   // Subcategories and locations: add, rename, remove (hide) and bring back.

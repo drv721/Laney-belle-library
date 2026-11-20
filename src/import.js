@@ -72,7 +72,7 @@ export async function importRows(env, by, body) {
   const [list, collection, statuses] = await env.DB.batch([
     env.DB.prepare("SELECT code FROM lists WHERE code = ?").bind(text(body.list_code, 40)),
     env.DB.prepare("SELECT id FROM collections WHERE id = ?").bind(text(body.collection_id, 60)),
-    env.DB.prepare("SELECT code FROM statuses"),
+    env.DB.prepare("SELECT code FROM statuses WHERE deleted_at IS NULL"),
   ]);
   if (!list.results.length || !collection.results.length) return { status: 400, data: { error: "List or collection is missing." } };
   const listCode = list.results[0].code;

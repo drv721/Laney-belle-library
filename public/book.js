@@ -35,6 +35,40 @@ function dateBox(it, name, label) {
 function noneOptions(items, current) {
   return `<option value="">None</option>${options(items, "id", "name", current)}`;
 }
+// Her own fields, in the order she added them. Each box is named cf-<field id>.
+export function customFieldsHtml(fields, custom) {
+  if (!fields.length) return "";
+  const box = (f) => {
+    const name = `cf-${f.id}`;
+    const v = esc(custom[f.id] ?? "");
+    if (f.field_type === "yesno") {
+      const opt = (val, label) => `<option value="${val}" ${(custom[f.id] ?? "") === val ? "selected" : ""}>${label}</option>`;
+      return `<label>${esc(f.name)} <select name="${name}">${opt("", "Not set")}${opt("yes", "Yes")}${opt("no", "No")}</select></label>`;
+    }
+    if (f.field_type === "date") return `<label>${esc(f.name)} <input type="date" name="${name}" value="${v}"></label>`;
+    if (f.field_type === "number") return `<label>${esc(f.name)} <input name="${name}" inputmode="decimal" value="${v}" autocomplete="off"></label>`;
+    return `<label>${esc(f.name)} <input name="${name}" value="${v}" autocomplete="off" maxlength="1000"></label>`;
+  };
+  return `<h3>More details</h3>${fields.map(box).join("")}`;
+}
+
+// The fields she changed, as { field id: value } (null clears one), or { error }.
+export function readCustom(form, fields, custom) {
+  const out = {};
+  for (const f of fields) {
+    const el = form.elements[`cf-${f.id}`];
+    if (!el) continue;
+    let v = String(el.value ?? "").trim();
+    if (f.field_type === "number" && v) {
+      const n = Number(v.replace(/^\$/, ""));
+      if (!Number.isFinite(n)) return { error: `${f.name} needs to be a number.` };
+      v = String(n);
+    }
+    if ((custom[f.id] ?? "") !== v) out[f.id] = v || null;
+  }
+  return { custom: out };
+}
+
 const subsFor = (s, collectionId) => (s.subcategories || []).filter((x) => x.collection_id === collectionId);
 
 function coverBox(b) {
@@ -104,12 +138,13 @@ function render() {
     <div class="pair">
       ${dateBox(it, "purchase_date", "When")}
       <label>Price <input name="purchase_price" inputmode="decimal" value="${v("purchase_price")}" autocomplete="off"></label>
-    </div>`;
+    </div>
+    ${customFieldsHtml(s.custom_fields || [], it.custom || {})}`;
   wireTagBox($("#book-form").elements.tags, $("#book-tag-suggest"), () => s.tags || [])();
 }
 
 // Reads the form, checks it, and returns only what changed, or { error }.
-export function readChanges(form, item) {
+export function readChanges(form, item, fields = []) {
   const val = (n) => String(form.elements[n].value ?? "").trim();
   const out = {};
   const errors = [];
@@ -151,6 +186,10 @@ export function readChanges(form, item) {
   number("purchase_price", "Price");
   if (!val("copies")) delete out.copies; // copies can't be empty; leaving it blank keeps what's there
 
+  const c = readCustom(form, fields, item.custom || {});
+  if (c.error) errors.push(c.error);
+  else if (Object.keys(c.custom).length) out.custom = c.custom;
+
   if (errors.length) return { error: errors.join(" ") };
   return { changes: out };
 }
@@ -185,7 +224,7 @@ export function wireBook({ api, toast, onChange }) {
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const { error, changes } = readChanges(form, page.item);
+    const { error, changes } = readChanges(form, page.item, page.settings.custom_fields || []);
     if (error) { $("#book-msg").textContent = error; return; }
     if (!Object.keys(changes).length) { dlg.close(); return; }
     const btn = $("#book-save");
