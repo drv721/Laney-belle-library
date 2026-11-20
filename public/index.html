@@ -252,6 +252,10 @@
           <span>Subcategories and locations</span>
           <span class="muted">Add, rename or remove them</span>
         </button></li>
+        <li><button type="button" id="fields-open" class="settings-item">
+          <span>Fields and statuses</span>
+          <span class="muted">Add your own fields to the book page, and your own statuses</span>
+        </button></li>
         <li><button type="button" id="show-deleted" class="settings-item">
           <span>Recently removed</span>
           <span class="muted">See removed books and put them back</span>
@@ -282,6 +286,18 @@
       <p class="muted">Changes save as you go. A name you change here changes on every book that has it.</p>
       <div id="sections-body"></div>
       <p id="sections-msg" class="flag" role="status"></p>
+      <div class="dialog-actions">
+        <button type="submit" class="primary">Done</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="fields-dialog">
+    <form method="dialog" id="fields-form">
+      <h2>Fields and statuses</h2>
+      <p class="muted">Changes save as you go. A name you change here changes on every book.</p>
+      <div id="fields-body"></div>
+      <p id="fields-msg" class="flag" role="status"></p>
       <div class="dialog-actions">
         <button type="submit" class="primary">Done</button>
       </div>

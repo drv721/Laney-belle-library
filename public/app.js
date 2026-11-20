@@ -6,6 +6,7 @@ import { wireAdd } from "./add.js";
 import { openBulk, wireBulk } from "./bulk.js";
 import { openBook, wireBook } from "./book.js";
 import { openSections, wireSections } from "./sections.js";
+import { openFields, wireFields } from "./fields.js";
 import { KEEP, bulkChanges, applyBulk, undoBulk, summary, applyTagBulk, undoTagBulk, tagSummary } from "./select.js";
 import { wireTagBox, cleanTag } from "./tags.js";
 import { wireHub } from "./hub.js";
@@ -417,6 +418,8 @@ function wire() {
   refreshAddTags = wireTagBox($("#add-form").elements.tags, $("#add-tag-suggest"), () => state.settings.tags);
   wireSections({ api, toast, getSettings: () => state.settings, onChange: reloadSettings });
   $("#sections-open").addEventListener("click", fromSettings(openSections));
+  wireFields({ api, toast, getSettings: () => state.settings, onChange: reloadSettings });
+  $("#fields-open").addEventListener("click", fromSettings(openFields));
   $("#add-collection").addEventListener("change", fillAddSubcategories);
   $("#bulk-open").addEventListener("click", () => openBulk(state.settings));
 
@@ -457,10 +460,13 @@ function showLibrary(on) {
   if (on) loadBooks();
 }
 
-// After she changes subcategories or locations: new menus, and the list
+// After she changes subcategories, locations, statuses or fields: new menus, and the list
 // again so names and counts on every book are current.
 async function reloadSettings() {
   state.settings = await api("/api/settings");
+  // A status she removed can't stay picked.
+  if (state.status && !state.settings.statuses.some((s) => s.code === state.status)) state.status = "";
+  renderChips();
   renderFilters();
   if (hub.on) await hub.refresh(); // the hub's covers, after a save from the book page or Add a book
   else await loadBooks();

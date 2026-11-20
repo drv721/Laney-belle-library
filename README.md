@@ -99,6 +99,23 @@ No database change, so no migration. Pull, then `npx wrangler deploy`.
 
 No database change, so no migration. Pull, then `npx wrangler deploy`.
 
+## Fields and statuses she adds herself
+
+- **Settings, then Fields and statuses.** She adds, renames and removes her own statuses (like Reading next) and her own fields for the book page (like Signed, Gift from or Price paid). Each change saves right away, and Remove has Undo.
+- **Statuses:** a new one goes at the end, so the status button on each book steps through it last. The four from Libib can be renamed. Not begun is where new books start, so it can't be removed. A status can only be removed when no book has it, counting books in Recently removed, so no book is ever left with a status that isn't on the menu.
+- **Fields:** each is Text, Number, Date or Yes or no, picked when it's added. They show on every book page under More details and save with Save; an emptied box clears the value. A removed field keeps what she typed on every book, and Undo brings it all back. If she adds a new field with the same name as a removed one, the removed one steps aside quietly; bringing it back while the new one is still there asks her to rename one first.
+- **Export** adds one column per field, after the usual columns, under the names she gave them. The nightly copy already includes both tables.
+- Every add, rename, remove and value change goes in the change log with before and after.
+- Files: `migrations/0003_custom_fields_statuses.sql`, `src/fields.js` (API), `public/fields.js` (the screen), the More details section in `public/book.js`. Tests: `test/fields.test.mjs`.
+
+This one changes the database: one new column on statuses and on custom fields, and an index, nothing renamed or removed. Run the migration **before** the deploy, because the new code reads the new columns:
+
+```
+git pull
+npx wrangler d1 migrations apply melanie-library --remote
+npx wrangler deploy
+```
+
 ## Rules for every change
 
 1. Structure changes only through a new numbered file in `migrations/`. Never edit a migration that has already run.

@@ -21,6 +21,7 @@ export async function libraryStats(env) {
            FROM shelf_items s JOIN books b ON b.id = s.book_id WHERE ${LIVE}`),
       q(`SELECT st.code AS id, st.label AS name, COUNT(s.id) AS count
            FROM statuses st LEFT JOIN shelf_items s ON s.status_code = st.code AND ${LIVE}
+          WHERE st.deleted_at IS NULL
           GROUP BY st.code ORDER BY st.sort_order`),
       q(`SELECT l.code AS id, l.label AS name, COUNT(s.id) AS count
            FROM lists l LEFT JOIN shelf_items s ON s.list_code = l.code AND ${LIVE}

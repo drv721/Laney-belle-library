@@ -168,6 +168,7 @@ dialog { max-height: calc(100dvh - 32px); overflow-y: auto; }
 .section-list li, .section-add { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
 .section-list .count { grid-column: 1 / -1; margin: -4px 0 0; font-size: 0.8rem; color: var(--muted); }
 .section-add { margin-top: 8px; }
+.field-add { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; margin-top: 8px; }
 
 /* Select mode */
 .list-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
