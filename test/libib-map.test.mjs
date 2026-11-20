@@ -6,7 +6,7 @@ import { mapLibibCsv } from "../public/libib-map.js";
 const out = mapLibibCsv(readFileSync(new URL("./sample-libib.csv", import.meta.url), "utf8"), { fileName: "sample-libib.csv" });
 
 test("reads every row and skips blank ones", () => assert.equal(out.rows.length, 3));
-test("keeps a comma inside an author's name", () => assert.deepEqual(out.rows[0].book.authors, ["Morrison, Toni"]));
+test("a comma between names is two authors", () => assert.deepEqual(out.rows[0].book.authors, ["Morrison", "Toni"]));
 test("splits authors on a semicolon", () => assert.deepEqual(out.rows[2].book.authors, ["Someone", "Another"]));
 test("status labels become codes, any case", () => {
   assert.equal(out.rows[0].item.status_code, "completed");
@@ -37,4 +37,37 @@ test("bad values are flagged, not guessed", () => {
 test("unknown headers are reported and kept raw", () => {
   assert.deepEqual(out.unknownHeaders, ["some_new_column"]);
   assert.equal(out.rows[0].raw["Some New Column"], "x");
+});
+
+// The real export's header names (Nov 2026), with made-up rows.
+import { splitAuthors, mightBeSame } from "../public/libib-map.js";
+const real = mapLibibCsv(readFileSync(new URL("./sample-libib-export.csv", import.meta.url), "utf8"), { fileName: "library.csv" });
+
+test("real export: no unknown or missing columns", () => {
+  assert.deepEqual(real.unknownHeaders, []);
+  assert.deepEqual(real.missingHeaders, []);
+});
+test("real export: length is pages, began and completed are dates", () => {
+  assert.equal(real.rows[0].book.pages, 368);
+  assert.equal(real.rows[0].item.began_date, "2025-01-02");
+  assert.equal(real.rows[0].item.completed_date, "2025-02-03");
+});
+test("real export: several authors, a PhD stays with its name, roles stay", () => {
+  assert.deepEqual(real.rows[0].book.authors, ["Ann Writer, PhD", "Bo Helper (Illustrator)"]);
+  assert.deepEqual(real.rows[1].book.authors, ["Cy Solo"]);
+});
+test("real export: an ISBN-10 in the ISBN-13 column is used", () => {
+  assert.equal(real.rows[1].book.isbn10, "0306406152");
+  assert.equal(real.rows[1].book.isbn13, "9780306406157");
+  assert.deepEqual(real.rows[1].warnings, []);
+});
+test("real export: a jumbled author cell is flagged", () => assert.match(real.rows[2].warnings.join(), /creators/));
+test("Last, First for the listed author is one person", () => {
+  assert.deepEqual(splitAuthors("Morrison, Toni", "Toni", "Morrison"), ["Toni Morrison"]);
+});
+test("might be the same book: missing author or ISBN, not two editions", () => {
+  assert.equal(mightBeSame({ title: "Solo", authors: [] }, { title: "solo", authors: ["Kwame Alexander"] }), true);
+  assert.equal(mightBeSame({ title: "Dracula", authors: ["Bram Stoker"], isbn13: "9780306406157" }, { title: "Dracula", authors: ["Bram Stoker"] }), true);
+  assert.equal(mightBeSame({ title: "Oz", authors: ["A"], isbn13: "9780306406157" }, { title: "Oz", authors: ["A"], isbn13: "9781401603908" }), false);
+  assert.equal(mightBeSame({ title: "Solo", authors: ["X"] }, { title: "Solo", authors: ["Y"] }), false);
 });
