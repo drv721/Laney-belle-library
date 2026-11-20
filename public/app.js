@@ -8,6 +8,7 @@ import { openBook, wireBook } from "./book.js";
 import { openSections, wireSections } from "./sections.js";
 import { KEEP, bulkChanges, applyBulk, undoBulk, summary, applyTagBulk, undoTagBulk, tagSummary } from "./select.js";
 import { wireTagBox, cleanTag } from "./tags.js";
+import { wireHub } from "./hub.js";
 
 const $ = (sel) => document.querySelector(sel);
 const state = {
@@ -409,7 +410,7 @@ function wire() {
   wireImport();
   $("#import-open").addEventListener("click", fromSettings(() => openImport(state.settings, loadBooks)));
 
-  wireAdd({ api, toast, fillSelects, onChange: reloadSettings }); // a new tag shows up in the menus
+  const adder = wireAdd({ api, toast, fillSelects, onChange: reloadSettings }); // a new tag shows up in the menus
   wireBulk({ api, onChange: loadBooks });
   wireBook({ api, toast, onChange: reloadSettings });
   refreshAddTags = wireTagBox($("#add-form").elements.tags, $("#add-tag-suggest"), () => state.settings.tags);
@@ -417,6 +418,23 @@ function wire() {
   $("#sections-open").addEventListener("click", fromSettings(openSections));
   $("#add-collection").addEventListener("change", fillAddSubcategories);
   $("#bulk-open").addEventListener("click", () => openBulk(state.settings));
+
+  // The hub replaces the library screen on this device until she taps Full library.
+  hub = wireHub({
+    api,
+    openBook,
+    openAdd: adder.open,
+    getSettings: () => state.settings,
+    onLeave: () => { savePref("hub", ""); showLibrary(true); },
+  });
+  $("#hub-open").addEventListener("click", fromSettings(() => { savePref("hub", "1"); showLibrary(false); hub.enter(); }));
+}
+let hub = { refresh() {}, on: false };
+
+function showLibrary(on) {
+  $("#main-top").hidden = !on;
+  $("#library-view").hidden = !on;
+  if (on) loadBooks();
 }
 
 // After she changes subcategories or locations: new menus, and the list
@@ -424,7 +442,8 @@ function wire() {
 async function reloadSettings() {
   state.settings = await api("/api/settings");
   renderFilters();
-  await loadBooks();
+  if (hub.on) await hub.refresh(); // the hub's covers, after a save from the book page or Add a book
+  else await loadBooks();
 }
 
 function fillSelects() {
@@ -459,7 +478,10 @@ async function start() {
     if (!SORTS.includes(state.sort)) state.sort = "title";
     renderChips();
     renderFilters();
-    await loadBooks();
+    // This device is the hub (or the address ends in ?hub): open straight to it.
+    if (new URLSearchParams(location.search).has("hub")) savePref("hub", "1");
+    if (readPref("hub", "") === "1") { showLibrary(false); hub.enter(); }
+    else await loadBooks();
   } catch (err) {
     $("#count").textContent = err.message;
   }

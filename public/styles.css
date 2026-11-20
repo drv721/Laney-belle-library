@@ -209,3 +209,27 @@ body.selecting .toast { bottom: calc(env(safe-area-inset-bottom) + 230px); z-ind
 .tag-suggest:empty { display: none; }
 .tag-chip { min-height: 36px; padding: 6px 12px; font-size: 0.85rem; background: transparent; color: var(--muted); }
 .tag-row input { flex: 1; min-width: 0; }
+
+/* Library hub (the iPad by the shelves) */
+.hub-find { font-size: 1rem; }
+#hub-search { font-size: 1.3rem; min-height: 56px; }
+#hub-cam { margin: 4px 0 8px; }
+#hub-msg:empty { display: none; }
+#hub-count { margin: 8px 0; }
+.hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 18px; }
+.hub-book { all: unset; cursor: pointer; display: grid; gap: 4px; width: 100%; }
+.hub-book:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 8px; }
+.hub-book .cover { width: 100%; font-size: 0.85rem; padding: 8px; }
+.hub-book .author { font-size: 0.8rem; }
+.hub-spot { color: var(--accent); font-size: 0.85rem; font-weight: 600; }
+#where-dialog { width: min(520px, calc(100vw - 32px)); }
+#where-body { display: grid; gap: 20px; }
+.where-copy { display: grid; gap: 10px; }
+.where-copy + .where-copy { border-top: 1px solid var(--line); padding-top: 16px; }
+.where-book { display: grid; grid-template-columns: 72px 1fr; gap: 14px; align-items: center; }
+.where-book .cover { width: 72px; }
+.where-spot { margin: 0; font-size: 1.6rem; font-weight: 700; color: var(--accent); }
+.where-details { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0; }
+.where-details dt { color: var(--muted); }
+.where-details dd { margin: 0; }
+.where-copy [data-open-book] { justify-self: start; }

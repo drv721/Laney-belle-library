@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <header class="top">
+  <header class="top" id="main-top">
     <h1>Library</h1>
     <div class="top-actions">
       <button id="view-toggle" class="ghost" aria-label="Switch between list and covers">Covers</button>
@@ -56,6 +56,38 @@
   </main>
 
   </div>
+
+  <section id="hub-view" hidden>
+    <div class="top">
+      <h1>Library</h1>
+      <div class="top-actions">
+        <button id="hub-add" class="ghost">Add book</button>
+        <button id="hub-leave" class="ghost">Full library</button>
+      </div>
+    </div>
+    <label class="scan-label hub-find">Find a book, or scan one
+      <input id="hub-search" type="search" placeholder="Title, author or ISBN" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
+    </label>
+    <button type="button" id="hub-cam" class="primary cam-open">Scan with camera</button>
+    <div id="hub-cam-panel" class="cam" hidden>
+      <video data-cam-video playsinline muted></video>
+      <p data-cam-msg class="muted" role="status"></p>
+      <button type="button" data-cam-stop class="ghost">Close camera</button>
+    </div>
+    <p id="hub-msg" class="flag" role="status"></p>
+    <p id="hub-count" class="muted"></p>
+    <ul id="hub-books" class="books hub-grid"></ul>
+  </section>
+
+  <dialog id="where-dialog">
+    <form method="dialog">
+      <h2 id="where-head" hidden></h2>
+      <div id="where-body"></div>
+      <div class="dialog-actions">
+        <button type="submit" class="primary">Done</button>
+      </div>
+    </form>
+  </dialog>
 
   <section id="import-view" hidden>
     <div class="top">
@@ -214,6 +246,10 @@
         <li><button type="button" id="import-open" class="settings-item">
           <span>Import from Libib</span>
           <span class="muted">Bring in spreadsheets exported from Libib</span>
+        </button></li>
+        <li><button type="button" id="hub-open" class="settings-item">
+          <span>Library hub on this device</span>
+          <span class="muted">A find and scan screen for the iPad by the shelves</span>
         </button></li>
         <li><a id="export" class="settings-item" href="/api/export.csv">
           <span>Export spreadsheet</span>
