@@ -5,7 +5,7 @@ A home-screen web app for her books. One Cloudflare Worker serves the app and it
 ## What's in weekend 1
 
 - `migrations/0001_initial.sql`: every table the Christmas plan needs. Books, her copies, statuses, lists (owned, wish list, borrowed, previously owned), collections, tags, custom fields, a change log, and import tables that keep every original Libib row.
-- `src/index.js`: the API. Add, edit, remove (hidden, never erased), restore, search, filter, rename a status, export a spreadsheet. Every change is written to the change log. It checks the Access sign-in on every request and only lets the two allowed emails in.
+- `src/index.js`: the API. Add, edit, remove (hidden, never erased), restore, search, filter, sort, rename a status, export a spreadsheet. Every change is written to the change log. It checks the Access sign-in on every request and only lets the two allowed emails in.
 - `src/backup.js`: the nightly copy to R2, deleting anything older than the newest 30.
 - `public/`: the app itself, dark theme, list or cover view, add a book by hand, tap a status to change it, remove with undo, a Recently removed view, and the Libib import.
 
@@ -38,6 +38,26 @@ No database change is needed for this, so no migration runs. Pull, then `npx wra
 - Remove on the page works like Remove on the row, with Undo.
 - The server refuses an empty title, a cover from anywhere but Open Library, and copies below 1.
 - Files: `public/book.js`, tests in `test/book.test.mjs`.
+
+## Sort, filter, subcategories and locations
+
+- **Sort and filter** sits under the status chips and folds away on a phone; its label says what's in use. Sort by title, author (by last name, so Le Guin files under L), newest added, status, subcategory or location. The sort is remembered on each device.
+- Filter by list, collection, subcategory, location and tag. A menu with nothing to choose stays hidden (one collection, no tags yet). Subcategory and Location also offer **Not set yet**, to find the books still to sort.
+- **Subcategories** are hers to name (Classics, Fiction, Fantasy, Work...). Each collection has its own, and a book sits in one subcategory or none. Moving a book to another collection drops a subcategory that doesn't belong there.
+- **Locations** start as stand-ins, Bookcase 1 to Bookcase 6, to rename once the real names are known. Location is the menu; the free-text **Shelf** box is still there for "top shelf, left".
+- Both are set on the book page and in Add a book, and managed on **Subcategories and locations** (button at the bottom): add, rename, or remove. A new name changes on every book at once. Remove has Undo, and an undone one comes back with every book that was in it (removing only hides it).
+- The export spreadsheet has subcategory and location columns.
+- Files: `migrations/0002_subcategories_locations.sql`, `src/sections.js` (API), `src/sort.js` (author sort), `public/sections.js` (the screen), menus in `public/app.js`, `public/book.js`, `public/add.js`. Tests: `test/sort.test.mjs`, `test/book.test.mjs`.
+
+This one changes the database: two new tables and two new columns on her copies, nothing renamed or removed. Pull, add them to the live database, then deploy:
+
+```
+cd ~/Code/Laney-belle-library && git pull
+npx wrangler d1 migrations apply melanie-library --remote
+npx wrangler deploy
+```
+
+The nightly R2 copy is there if anything goes wrong; the migration only adds.
 
 ## Scan to add
 

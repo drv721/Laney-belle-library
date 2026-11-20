@@ -70,6 +70,7 @@ export function wireAdd({ api, toast, fillSelects, onChange }) {
       list_code: f.get("list_code"),
       shelf_location: String(f.get("shelf_location") || "").trim() || null,
     };
+    for (const k of ["collection_id", "subcategory_id", "location_id"]) if (f.get(k)) body[k] = f.get(k);
     if (isbnRead.kind === "isbn") {
       body.isbn13 = isbnRead.isbn13;
       if (isbnRead.isbn10) body.isbn10 = isbnRead.isbn10;

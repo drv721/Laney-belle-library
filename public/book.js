@@ -14,7 +14,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const TEXT = ["title", "subtitle", "publisher", "publish_date", "description", "shelf_location", "condition",
   "purchase_place", "review", "notes"];
 const DATES = ["began_date", "completed_date", "review_date", "purchase_date", "added_date"];
-const SELECTS = ["status_code", "list_code", "collection_id"];
+const SELECTS = ["status_code", "list_code", "collection_id", "subcategory_id", "location_id"];
 
 const page = { item: null, settings: null };
 
@@ -29,6 +29,12 @@ function dateBox(it, name, label) {
   const iso = !v || /^\d{4}-\d{2}-\d{2}$/.test(v);
   return `<label>${label} <input ${iso ? 'type="date"' : 'autocomplete="off"'} name="${name}" value="${esc(v)}"></label>`;
 }
+
+// A menu where "None" is a real choice. A book can be in no subcategory or location.
+function noneOptions(items, current) {
+  return `<option value="">None</option>${options(items, "id", "name", current)}`;
+}
+const subsFor = (s, collectionId) => (s.subcategories || []).filter((x) => x.collection_id === collectionId);
 
 function coverBox(b) {
   return b.cover_url
@@ -66,10 +72,14 @@ function render() {
     </div>
     <div class="pair">
       <label>Collection <select name="collection_id">${options(s.collections, "id", "name", it.collection_id)}</select></label>
-      <label>Copies <input name="copies" inputmode="numeric" value="${v("copies")}" autocomplete="off"></label>
+      <label>Subcategory <select name="subcategory_id">${noneOptions(subsFor(s, it.collection_id), it.subcategory_id)}</select></label>
     </div>
     <div class="pair">
-      <label>Shelf location <input name="shelf_location" value="${v("shelf_location")}" autocomplete="off"></label>
+      <label>Location <select name="location_id">${noneOptions(s.locations || [], it.location_id)}</select></label>
+      <label>Shelf <input name="shelf_location" value="${v("shelf_location")}" placeholder="Top shelf, left" autocomplete="off"></label>
+    </div>
+    <div class="pair">
+      <label>Copies <input name="copies" inputmode="numeric" value="${v("copies")}" autocomplete="off"></label>
       <label>Condition <input name="condition" value="${v("condition")}" autocomplete="off"></label>
     </div>
     ${dateBox(it, "added_date", "Added")}
@@ -158,6 +168,15 @@ export function wireBook({ api, toast, onChange }) {
   });
 
   $("#book-cancel").addEventListener("click", () => dlg.close());
+
+  // Each collection has its own subcategories, so the menu follows the collection.
+  form.addEventListener("change", (e) => {
+    if (e.target.name !== "collection_id") return;
+    const sub = form.elements.subcategory_id;
+    const keep = sub.value;
+    const subs = subsFor(page.settings, e.target.value);
+    sub.innerHTML = noneOptions(subs, subs.some((x) => x.id === keep) ? keep : "");
+  });
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
