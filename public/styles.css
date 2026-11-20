@@ -233,3 +233,21 @@ body.selecting .toast { bottom: calc(env(safe-area-inset-bottom) + 230px); z-ind
 .where-details dt { color: var(--muted); }
 .where-details dd { margin: 0; }
 .where-copy [data-open-book] { justify-self: start; }
+
+/* Library stats */
+#stats-view h2 { margin: 0; }
+.stats-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin: 8px 0 12px; }
+.stats-tile { display: grid; gap: 2px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.stats-big { font-size: 1.6rem; font-weight: 700; }
+.stats-line { margin: 4px 0; }
+.stats-group { margin-top: 20px; }
+.stats-group h3 { margin: 0 0 8px; font-size: 1rem; }
+.stats-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.stats-row {
+  position: relative; overflow: hidden; width: 100%; display: flex; justify-content: space-between; gap: 12px;
+  border-radius: var(--radius); background: var(--bg); text-align: left;
+}
+.stats-row:disabled { cursor: default; opacity: 0.6; }
+.stats-label, .stats-count { position: relative; z-index: 1; }
+.stats-count { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.stats-bar { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--accent) 22%, transparent); z-index: 0; }
