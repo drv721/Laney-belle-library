@@ -16,6 +16,7 @@
     <div class="top-actions">
       <button id="view-toggle" class="ghost" aria-label="Switch between list and covers">Covers</button>
       <button id="bulk-open" class="ghost">Bulk scan</button>
+      <button id="settings-open" class="ghost">Settings</button>
       <button id="add-open" class="primary">Add book</button>
     </div>
   </header>
@@ -48,18 +49,12 @@
     <div class="list-head">
       <p id="count" class="muted"></p>
       <button id="select-toggle" class="ghost">Select</button>
+      <button id="deleted-back" class="ghost" hidden>Back to library</button>
     </div>
     <ul id="books" class="books list"></ul>
     <p id="empty" class="empty" hidden>No books yet. Tap Add book to put the first one on the shelf.</p>
   </main>
 
-  <footer class="bottom">
-    <button id="show-deleted" class="ghost">Recently removed</button>
-    <button id="sections-open" class="ghost">Subcategories and locations</button>
-    <button id="import-open" class="ghost">Import from Libib</button>
-    <a id="export" class="ghost button" href="/api/export.csv">Export spreadsheet</a>
-    <span id="who" class="muted"></span>
-  </footer>
   </div>
 
   <section id="import-view" hidden>
@@ -195,6 +190,34 @@
       <button id="select-apply" class="primary" disabled>Set on 0 books</button>
     </div>
   </div>
+
+  <dialog id="settings-dialog">
+    <form method="dialog" id="settings-form">
+      <h2>Settings</h2>
+      <ul class="settings-list">
+        <li><button type="button" id="sections-open" class="settings-item">
+          <span>Subcategories and locations</span>
+          <span class="muted">Add, rename or remove them</span>
+        </button></li>
+        <li><button type="button" id="show-deleted" class="settings-item">
+          <span>Recently removed</span>
+          <span class="muted">See removed books and put them back</span>
+        </button></li>
+        <li><button type="button" id="import-open" class="settings-item">
+          <span>Import from Libib</span>
+          <span class="muted">Bring in spreadsheets exported from Libib</span>
+        </button></li>
+        <li><a id="export" class="settings-item" href="/api/export.csv">
+          <span>Export spreadsheet</span>
+          <span class="muted">Every book in one file for Excel or Numbers</span>
+        </a></li>
+      </ul>
+      <p id="who" class="muted"></p>
+      <div class="dialog-actions">
+        <button type="submit" class="primary">Done</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog id="sections-dialog">
     <form method="dialog" id="sections-form">

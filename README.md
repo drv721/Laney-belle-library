@@ -7,14 +7,14 @@ A home-screen web app for her books. One Cloudflare Worker serves the app and it
 - `migrations/0001_initial.sql`: every table the Christmas plan needs. Books, her copies, statuses, lists (owned, wish list, borrowed, previously owned), collections, tags, custom fields, a change log, and import tables that keep every original Libib row.
 - `src/index.js`: the API. Add, edit, remove (hidden, never erased), restore, search, filter, sort, rename a status, export a spreadsheet. Every change is written to the change log. It checks the Access sign-in on every request and only lets the two allowed emails in.
 - `src/backup.js`: the nightly copy to R2, deleting anything older than the newest 30.
-- `public/`: the app itself, dark theme, list or cover view, add a book by hand, tap a status to change it, remove with undo, a Recently removed view, and the Libib import.
+- `public/`: the app itself, dark theme, list or cover view, add a book by hand, tap a status to change it, remove with undo, a Recently removed view, and the Libib import. Settings (top bar) holds Subcategories and locations, Recently removed, Import from Libib and Export spreadsheet.
 
 Statuses start as Libib's four: Not begun, In progress, Completed, Abandoned. Books store a fixed code, so renaming a status never touches a book.
 
 ## Importing from Libib (weekend 2, built early)
 
 - In Libib, export each collection as a spreadsheet. Libib makes one file per collection.
-- In the app, tap Import from Libib and pick one or more files. The phone or iPad reads them; nothing is saved yet.
+- In the app, tap Settings, then Import from Libib, and pick one or more files. The phone or iPad reads them; nothing is saved yet.
 - Each file gets a list (owned, wish list, borrowed, previously owned; guessed from the file name) and a collection name.
 - Every row shows with its cover and anything worth a look: duplicates inside a file, across files, or already in the library, and values that didn't fit (kept as written, never guessed).
 - Duplicates are only skipped when she unticks them, or taps Skip duplicates and checks the result.
@@ -45,7 +45,7 @@ No database change is needed for this, so no migration runs. Pull, then `npx wra
 - Filter by list, collection, subcategory, location and tag. A menu with nothing to choose stays hidden (one collection, no tags yet). Subcategory and Location also offer **Not set yet**, to find the books still to sort.
 - **Subcategories** are hers to name (Classics, Fiction, Fantasy, Work...). Each collection has its own, and a book sits in one subcategory or none. Moving a book to another collection drops a subcategory that doesn't belong there.
 - **Locations** start as stand-ins, Bookcase 1 to Bookcase 6, to rename once the real names are known. Location is the menu; the free-text **Shelf** box is still there for "top shelf, left".
-- Both are set on the book page and in Add a book, and managed on **Subcategories and locations** (button at the bottom): add, rename, or remove. A new name changes on every book at once. Remove has Undo, and an undone one comes back with every book that was in it (removing only hides it).
+- Both are set on the book page and in Add a book, and managed on **Subcategories and locations** (in Settings, at the top): add, rename, or remove. A new name changes on every book at once. Remove has Undo, and an undone one comes back with every book that was in it (removing only hides it).
 - The export spreadsheet has subcategory and location columns.
 - **Select** (beside the book count) sets a subcategory and a location on many books at once. Tap books to tick them, or Select all to tick everything the list shows. Pick a subcategory, a location or both in the bar at the bottom ("Leave as is" keeps what each book has), then Set. Undo puts every book back as it was. Only books on screen stay ticked, so a change never reaches a book she can't see. A good way to sort the library: filter Subcategory to Not set yet, search an author or series, Select all, Set.
 - Books from different collections can share a location, but a subcategory can only be set on books from one collection.
