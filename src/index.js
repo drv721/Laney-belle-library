@@ -6,6 +6,8 @@ import { backupToR2 } from "./backup.js";
 import { lookupCovers, lookupBook, searchBooks, isCoverUrl, MAX_ISBNS_PER_CALL } from "./covers.js";
 import { readScan } from "../public/isbn.js";
 import { libraryKeys, startImport, importRows, listImports, undoImport } from "./import.js";
+import { sortByAuthor } from "./sort.js";
+import { KINDS, listStatement, createSection, renameSection, setSectionDeleted, checkSections } from "./sections.js";
 
 const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8" };
 const json = (data, status = 200) =>
@@ -67,8 +69,11 @@ const ITEM_SELECT = `
   SELECT s.*, b.isbn13, b.isbn10, b.title, b.subtitle, b.authors, b.publisher,
          b.publish_date, b.pages, b.cover_url, b.description, b.source,
          (SELECT json_group_array(t.name) FROM shelf_item_tags st
-            JOIN tags t ON t.id = st.tag_id WHERE st.shelf_item_id = s.id) AS tags
-  FROM shelf_items s JOIN books b ON b.id = s.book_id`;
+            JOIN tags t ON t.id = st.tag_id WHERE st.shelf_item_id = s.id) AS tags,
+         sc.name AS subcategory, lo.name AS location
+  FROM shelf_items s JOIN books b ON b.id = s.book_id
+  LEFT JOIN subcategories sc ON sc.id = s.subcategory_id AND sc.deleted_at IS NULL
+  LEFT JOIN locations lo ON lo.id = s.location_id AND lo.deleted_at IS NULL`;
 
 function shapeItem(row) {
   if (!row) return row;
@@ -76,6 +81,9 @@ function shapeItem(row) {
     ...row,
     authors: safeParse(row.authors, []),
     tags: safeParse(row.tags, []),
+    // A removed subcategory or location reads as none until Undo brings it back.
+    subcategory_id: row.subcategory ? row.subcategory_id : null,
+    location_id: row.location ? row.location_id : null,
   };
 }
 function safeParse(text, fallback) {
@@ -90,6 +98,17 @@ async function getItem(env, id) {
   const row = await env.DB.prepare(`${ITEM_SELECT} WHERE s.id = ?`).bind(id).first();
   return shapeItem(row);
 }
+
+// Sort choices for the list. Only these strings ever reach ORDER BY.
+// Author is sorted after the query, by last name (see authorKey).
+const SORTS = {
+  title: "b.title COLLATE NOCASE, s.id",
+  added: "(s.added_date IS NULL), s.added_date DESC, s.created_at DESC, s.id",
+  status: "(SELECT sort_order FROM statuses WHERE code = s.status_code), b.title COLLATE NOCASE, s.id",
+  // Books with none set go last.
+  subcategory: "(sc.name IS NULL), sc.sort_order, sc.name COLLATE NOCASE, b.title COLLATE NOCASE, s.id",
+  location: "(lo.name IS NULL), lo.sort_order, lo.name COLLATE NOCASE, b.title COLLATE NOCASE, s.id",
+};
 
 async function listItems(env, url) {
   const showDeleted = url.searchParams.get("deleted") === "1";
@@ -111,12 +130,32 @@ async function listItems(env, url) {
       binds.push(v);
     }
   }
+  // Subcategory and location: an id, or "none" for books not given one yet.
+  for (const [param, k] of [["subcategory", KINDS.subcategories], ["location", KINDS.locations]]) {
+    const v = url.searchParams.get(param);
+    if (v === "none") {
+      where.push(`NOT EXISTS (SELECT 1 FROM ${k.table} x WHERE x.id = s.${k.column} AND x.deleted_at IS NULL)`);
+    } else if (v) {
+      where.push(`s.${k.column} = ?`);
+      binds.push(v);
+    }
+  }
+  const tag = (url.searchParams.get("tag") || "").trim();
+  if (tag) {
+    where.push(
+      "EXISTS (SELECT 1 FROM shelf_item_tags st JOIN tags t ON t.id = st.tag_id WHERE st.shelf_item_id = s.id AND t.name = ? COLLATE NOCASE)"
+    );
+    binds.push(tag);
+  }
+  const order = SORTS[url.searchParams.get("sort")] || SORTS.title;
   const { results } = await env.DB.prepare(
-    `${ITEM_SELECT} WHERE ${where.join(" AND ")} ORDER BY b.title COLLATE NOCASE`
+    `${ITEM_SELECT} WHERE ${where.join(" AND ")} ORDER BY ${order}`
   )
     .bind(...binds)
     .all();
-  return results.map(shapeItem);
+  const items = results.map(shapeItem);
+  if (url.searchParams.get("sort") === "author") sortByAuthor(items);
+  return items;
 }
 
 // ---------- writing ----------
@@ -128,6 +167,7 @@ const ITEM_FIELDS = [
   "collection_id", "list_code", "status_code", "rating", "review", "review_date",
   "notes", "began_date", "completed_date", "added_date", "copies", "shelf_location",
   "condition", "purchase_place", "purchase_date", "purchase_price",
+  "subcategory_id", "location_id",
 ];
 
 function pick(obj, fields) {
@@ -161,6 +201,8 @@ async function addBook(env, by, body) {
   const itemId = newId();
   const item = pick(body, ITEM_FIELDS);
   item.added_date ??= now().slice(0, 10);
+  const sectionError = await checkSections(env, item, { collection_id: item.collection_id ?? "default" });
+  if (sectionError) return fail(400, sectionError);
 
   const bCols = Object.keys(book);
   const iCols = Object.keys(item);
@@ -199,6 +241,8 @@ async function updateItem(env, by, id, body) {
   if ("copies" in item && !(Number.isInteger(item.copies) && item.copies >= 1)) {
     return fail(400, "Copies needs to be a whole number, 1 or more.");
   }
+  const sectionError = await checkSections(env, item, before);
+  if (sectionError) return fail(400, sectionError);
   const stmts = [];
   if (Object.keys(book).length) {
     const cols = Object.keys(book);
@@ -242,6 +286,7 @@ const CSV_COLUMNS = [
   "pages", "status", "list", "collection", "rating", "review", "notes", "began_date",
   "completed_date", "added_date", "copies", "shelf_location", "condition",
   "purchase_place", "purchase_date", "purchase_price", "tags",
+  "subcategory", "location",
 ];
 function csvCell(v) {
   if (v === null || v === undefined) return "";
@@ -286,17 +331,29 @@ async function handleApi(request, env) {
   if (path === "/api/me" && method === "GET") return json({ email });
 
   if (path === "/api/settings" && method === "GET") {
-    const [statuses, lists, collections, fields] = await env.DB.batch([
+    const [statuses, lists, collections, fields, tags, subcategories, locations] = await env.DB.batch([
       env.DB.prepare("SELECT * FROM statuses ORDER BY sort_order"),
       env.DB.prepare("SELECT * FROM lists ORDER BY sort_order"),
-      env.DB.prepare("SELECT * FROM collections ORDER BY sort_order"),
+      env.DB.prepare(
+        "SELECT c.*, (SELECT COUNT(*) FROM shelf_items s WHERE s.collection_id = c.id AND s.deleted_at IS NULL) AS count " +
+        "FROM collections c ORDER BY c.sort_order"
+      ),
       env.DB.prepare("SELECT * FROM custom_fields ORDER BY sort_order"),
+      env.DB.prepare(
+        "SELECT t.name, COUNT(s.id) AS count FROM tags t JOIN shelf_item_tags st ON st.tag_id = t.id " +
+        "JOIN shelf_items s ON s.id = st.shelf_item_id AND s.deleted_at IS NULL GROUP BY t.id ORDER BY t.name COLLATE NOCASE"
+      ),
+      listStatement(env, "subcategories"),
+      listStatement(env, "locations"),
     ]);
     return json({
       statuses: statuses.results,
       lists: lists.results,
       collections: collections.results,
       custom_fields: fields.results,
+      tags: tags.results,
+      subcategories: subcategories.results,
+      locations: locations.results,
     });
   }
 
@@ -310,6 +367,18 @@ async function handleApi(request, env) {
     const after = await env.DB.prepare("SELECT * FROM statuses WHERE code = ?").bind(m[1]).first();
     await logChange(env, email, "status", m[1], "update", before, after).run();
     return json(after);
+  }
+
+  // Subcategories and locations: add, rename, remove (hide) and bring back.
+  m = path.match(/^\/api\/(subcategories|locations)(?:\/([A-Za-z0-9-]{1,40})(\/restore)?)?$/);
+  if (m) {
+    const [, kind, id, restore] = m;
+    let r;
+    if (!id && method === "POST") r = await createSection(env, email, kind, body, logChange);
+    else if (id && !restore && method === "PATCH") r = await renameSection(env, email, kind, id, body, logChange);
+    else if (id && !restore && method === "DELETE") r = await setSectionDeleted(env, email, kind, id, true, logChange);
+    else if (id && restore && method === "POST") r = await setSectionDeleted(env, email, kind, id, false, logChange);
+    if (r) return json(r.data, r.status);
   }
 
   if (path === "/api/books" && method === "GET") return json(await listItems(env, url));

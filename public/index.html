@@ -24,6 +24,24 @@
   <nav class="filters" aria-label="Filter">
     <input id="search" type="search" placeholder="Search title, author or ISBN" autocomplete="off">
     <div id="status-chips" class="chips" role="group" aria-label="Status"></div>
+    <details id="more-filters" class="more-filters">
+    <summary id="more-filters-label">Sort and filter</summary>
+    <div class="filter-row">
+      <label>Sort <select id="sort">
+        <option value="title">Title</option>
+        <option value="author">Author</option>
+        <option value="added">Newest added</option>
+        <option value="status">Status</option>
+        <option value="subcategory">Subcategory</option>
+        <option value="location">Location</option>
+      </select></label>
+      <label id="list-filter-wrap">List <select id="list-filter"></select></label>
+      <label id="collection-filter-wrap">Collection <select id="collection-filter"></select></label>
+      <label id="subcategory-filter-wrap">Subcategory <select id="subcategory-filter"></select></label>
+      <label id="location-filter-wrap">Location <select id="location-filter"></select></label>
+      <label id="tag-filter-wrap">Tag <select id="tag-filter"></select></label>
+    </div>
+    </details>
   </nav>
 
   <main>
@@ -34,6 +52,7 @@
 
   <footer class="bottom">
     <button id="show-deleted" class="ghost">Recently removed</button>
+    <button id="sections-open" class="ghost">Subcategories and locations</button>
     <button id="import-open" class="ghost">Import from Libib</button>
     <a id="export" class="ghost button" href="/api/export.csv">Export spreadsheet</a>
     <span id="who" class="muted"></span>
@@ -122,7 +141,10 @@
       <label>ISBN <input name="isbn" inputmode="numeric" autocomplete="off"></label>
       <label>Status <select name="status_code" id="add-status"></select></label>
       <label>List <select name="list_code" id="add-list"></select></label>
-      <label>Shelf location <input name="shelf_location" autocomplete="off"></label>
+      <label id="add-collection-wrap">Collection <select name="collection_id" id="add-collection"></select></label>
+      <label>Subcategory <select name="subcategory_id" id="add-subcategory"></select></label>
+      <label>Location <select name="location_id" id="add-location"></select></label>
+      <label>Shelf <input name="shelf_location" placeholder="Top shelf, left" autocomplete="off"></label>
       <div class="dialog-actions">
         <button type="button" id="add-cancel" class="ghost">Done</button>
         <button type="submit" value="next" class="ghost">Save and scan next</button>
@@ -148,6 +170,18 @@
         <span class="spacer"></span>
         <button type="button" id="book-cancel" class="ghost">Cancel</button>
         <button type="submit" id="book-save" class="primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="sections-dialog">
+    <form method="dialog" id="sections-form">
+      <h2>Subcategories and locations</h2>
+      <p class="muted">Changes save as you go. A name you change here changes on every book that has it.</p>
+      <div id="sections-body"></div>
+      <p id="sections-msg" class="flag" role="status"></p>
+      <div class="dialog-actions">
+        <button type="submit" class="primary">Done</button>
       </div>
     </form>
   </dialog>

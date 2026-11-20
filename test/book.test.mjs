@@ -7,7 +7,7 @@ const item = {
   publish_date: null, description: null, pages: null, status_code: "not_begun", list_code: "owned",
   collection_id: "default", copies: 1, shelf_location: null, condition: null, added_date: "2025-12-26",
   began_date: null, completed_date: null, rating: null, review_date: null, review: null, notes: null,
-  purchase_place: null, purchase_date: null, purchase_price: null,
+  purchase_place: null, purchase_date: null, purchase_price: null, subcategory_id: null, location_id: null,
 };
 function form(over = {}) {
   const v = {
@@ -37,4 +37,11 @@ test("a bad ISBN, empty title or odd number is refused with a reason", () => {
 });
 test("clearing a box clears the field; clearing copies keeps it", () => {
   assert.deepEqual(readChanges(form({ added_date: "", copies: "" }), item).changes, { added_date: null });
+});
+
+test("subcategory and location: picking one sends its id, None sends null", () => {
+  assert.deepEqual(readChanges(form({ subcategory_id: "sub-1", location_id: "loc-3" }), item).changes,
+    { subcategory_id: "sub-1", location_id: "loc-3" });
+  const placed = { ...item, subcategory_id: "sub-1", location_id: "loc-3" };
+  assert.deepEqual(readChanges(form({ subcategory_id: "", location_id: "loc-3" }), placed).changes, { subcategory_id: null });
 });
