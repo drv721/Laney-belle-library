@@ -170,5 +170,30 @@ Until step 8 is done, the app page opens but shows "Not signed in" and holds no 
 ## Rolling back
 
 - One book: Recently removed in the app, or the change log.
-- The whole library, last 7 days: `npx wrangler d1 time-travel restore melanie-library --timestamp=<when>`
-- Days 8 to 30: the nightly copies in the `melanie-library-backups` bucket under `nightly/`.
+- The whole library to an earlier moment (D1 Time Travel keeps 30 days on the Workers Paid plan, 7 on Free): `npx wrangler d1 time-travel restore melanie-library --timestamp=<when>`. It overwrites the live database in place and prints a bookmark; `--bookmark=<that bookmark>` undoes it.
+- Older than that, or if Time Travel can't help: the nightly copies in the `melanie-library-backups` bucket under `nightly/`, restored as below.
+
+### Practice a restore on your Mac (touches nothing live)
+
+Do this once so the steps are known before they're ever needed. Pick a day in the bucket, then:
+
+```
+npx wrangler r2 object get melanie-library-backups/nightly/<day>.json --remote --file backup.json
+node scripts/backup-to-sql.mjs backup.json restore.sql
+npx wrangler d1 migrations apply melanie-library --local --persist-to .restore-practice
+npx wrangler d1 execute melanie-library --local --persist-to .restore-practice --file restore.sql -y
+npx wrangler dev --persist-to .restore-practice
+```
+
+Open http://localhost:8787 and the library should look the way it did that night. The script prints how many rows each table has; the app's count should match its books line. Delete `backup.json`, `restore.sql` and `.restore-practice` afterwards (they hold her library, so never commit them).
+
+### Restoring the live library from a nightly copy (emergency only)
+
+1. Save a way back first: `npx wrangler d1 time-travel info melanie-library` and keep the bookmark it prints.
+2. Make `restore.sql` from the copy as above.
+3. `npx wrangler d1 execute melanie-library --remote --file restore.sql`
+4. Refresh the app. If anything looks wrong, `npx wrangler d1 time-travel restore melanie-library --bookmark=<saved bookmark>` puts it back.
+
+The restore replaces every table in the copy, so anything added after that night is gone unless it's re-added.
+
+Copies made before this restore change is deployed don't hold subcategories or locations. Restoring one of those keeps the subcategories and locations already in the database, and books whose subcategory or location isn't there come back with none set.
