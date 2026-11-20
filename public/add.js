@@ -219,7 +219,9 @@ export function wireAdd({ api, toast, fillSelects, onChange }) {
     scan.focus();
   });
 
-  $("#add-open").addEventListener("click", () => {
+  // Opens Add a book, empty. With an ISBN (one scanned on the hub), it looks
+  // that book up straight away, as if she'd scanned it here.
+  function open(isbn) {
     form.reset();
     clearBook();
     msg("");
@@ -228,7 +230,9 @@ export function wireAdd({ api, toast, fillSelects, onChange }) {
     fillSelects();
     dlg.showModal();
     scan.focus();
-  });
+    if (isbn) handleScan(readScan(isbn), isbn);
+  }
+  $("#add-open").addEventListener("click", () => open(""));
   $("#add-cancel").addEventListener("click", () => dlg.close());
 
   form.addEventListener("submit", async (e) => {
@@ -250,4 +254,5 @@ export function wireAdd({ api, toast, fillSelects, onChange }) {
       msg(err.message);
     }
   });
+  return { open };
 }

@@ -7,7 +7,7 @@
     "db:migrate:local": "wrangler d1 migrations apply melanie-library --local",
     "db:migrate:remote": "wrangler d1 migrations apply melanie-library --remote",
     "deploy": "wrangler deploy",
-    "test": "node --test test/libib-map.test.mjs test/scan.test.mjs test/camera.test.mjs test/book.test.mjs test/sort.test.mjs test/select.test.mjs test/tags.test.mjs"
+    "test": "node --test test/libib-map.test.mjs test/scan.test.mjs test/camera.test.mjs test/book.test.mjs test/sort.test.mjs test/select.test.mjs test/tags.test.mjs test/hub.test.mjs"
   },
   "dependencies": {
     "jose": "^6.0.0"
