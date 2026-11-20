@@ -203,3 +203,9 @@ body.selecting .toast { bottom: calc(env(safe-area-inset-bottom) + 230px); z-ind
 }
 .settings-item .muted { font-size: 0.85rem; }
 #who { margin: 4px 0 0; word-break: break-word; }
+
+/* Tags */
+.tag-suggest { display: flex; flex-wrap: wrap; gap: 6px; margin-top: -4px; }
+.tag-suggest:empty { display: none; }
+.tag-chip { min-height: 36px; padding: 6px 12px; font-size: 0.85rem; background: transparent; color: var(--muted); }
+.tag-row input { flex: 1; min-width: 0; }

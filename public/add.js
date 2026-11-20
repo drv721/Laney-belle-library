@@ -11,6 +11,7 @@
 import { readScan } from "./isbn.js";
 import { attachScanBox } from "./scanbox.js";
 import { attachCamera } from "./camera.js";
+import { parseTags } from "./tags.js";
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -71,6 +72,8 @@ export function wireAdd({ api, toast, fillSelects, onChange }) {
       shelf_location: String(f.get("shelf_location") || "").trim() || null,
     };
     for (const k of ["collection_id", "subcategory_id", "location_id"]) if (f.get(k)) body[k] = f.get(k);
+    const tags = parseTags(f.get("tags"));
+    if (tags.length) body.tags = tags;
     if (isbnRead.kind === "isbn") {
       body.isbn13 = isbnRead.isbn13;
       if (isbnRead.isbn10) body.isbn10 = isbnRead.isbn10;

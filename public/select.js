@@ -62,3 +62,39 @@ export function summary(changes, names, n) {
   if ("location_id" in changes) parts.push(changes.location_id ? names.location : "no location");
   return `Set ${parts.join(" and ")} on ${n} ${n === 1 ? "book" : "books"}`;
 }
+
+// One tag on ("add") or off ("remove") many books, BULK_MAX at a time.
+// Returns the books that changed (only those are touched by Undo) and the
+// tag's stored spelling. Work already done stays done if a call fails.
+export async function applyTagBulk(api, ids, mode, name) {
+  const changed = [];
+  let tag = name;
+  try {
+    for (const part of chunks(ids)) {
+      const r = await api("/api/books/tags", { method: "POST", body: { ids: part, [mode]: name } });
+      changed.push(...r.changed);
+      tag = r.tag;
+    }
+    return { changed, tag };
+  } catch (err) {
+    return { changed, tag, error: err.message };
+  }
+}
+
+export async function undoTagBulk(api, changed, mode, tag) {
+  const back = mode === "add" ? "remove" : "add";
+  for (const part of chunks(changed)) {
+    await api("/api/books/tags", { method: "POST", body: { ids: part, [back]: tag } });
+  }
+}
+
+// "Added Signed to 12 books", "Took Signed off 3 books", or why nothing changed.
+export function tagSummary(mode, tag, changedCount, pickedCount) {
+  const books = (n) => `${n} ${n === 1 ? "book" : "books"}`;
+  if (!changedCount) {
+    return mode === "add"
+      ? `${pickedCount === 1 ? "That book already has" : `All ${pickedCount} already have`} ${tag}`
+      : `${pickedCount === 1 ? "That book doesn't have" : `None of the ${pickedCount} have`} ${tag}`;
+  }
+  return mode === "add" ? `Added ${tag} to ${books(changedCount)}` : `Took ${tag} off ${books(changedCount)}`;
+}
