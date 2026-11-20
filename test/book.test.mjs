@@ -8,11 +8,12 @@ const item = {
   collection_id: "default", copies: 1, shelf_location: null, condition: null, added_date: "2025-12-26",
   began_date: null, completed_date: null, rating: null, review_date: null, review: null, notes: null,
   purchase_place: null, purchase_date: null, purchase_price: null, subcategory_id: null, location_id: null,
+  tags: ["Gothic", "Signed"],
 };
 function form(over = {}) {
   const v = {
     ...Object.fromEntries(Object.entries(item).map(([k, x]) => [k, x == null ? "" : String(x)])),
-    authors: item.authors.join("\n"), ...over,
+    authors: item.authors.join("\n"), tags: item.tags.join(", "), ...over,
   };
   return { elements: Object.fromEntries(Object.entries(v).map(([k, value]) => [k, { value }])) };
 }
@@ -44,4 +45,10 @@ test("subcategory and location: picking one sends its id, None sends null", () =
     { subcategory_id: "sub-1", location_id: "loc-3" });
   const placed = { ...item, subcategory_id: "sub-1", location_id: "loc-3" };
   assert.deepEqual(readChanges(form({ subcategory_id: "", location_id: "loc-3" }), placed).changes, { subcategory_id: null });
+});
+
+test("tags: sent only when changed, as a clean list", () => {
+  assert.deepEqual(readChanges(form({ tags: "Gothic,  Signed" }), item).changes, {});
+  assert.deepEqual(readChanges(form({ tags: "Gothic, Signed, gift copy, gothic" }), item).changes, { tags: ["Gothic", "Signed", "gift copy"] });
+  assert.deepEqual(readChanges(form({ tags: "" }), item).changes, { tags: [] });
 });

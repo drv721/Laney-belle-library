@@ -143,6 +143,8 @@
       <label>Subcategory <select name="subcategory_id" id="add-subcategory"></select></label>
       <label>Location <select name="location_id" id="add-location"></select></label>
       <label>Shelf <input name="shelf_location" placeholder="Top shelf, left" autocomplete="off"></label>
+      <label>Tags <input name="tags" placeholder="Separate tags with commas" autocomplete="off"></label>
+      <div id="add-tag-suggest" class="tag-suggest" aria-label="Tags you already use"></div>
       <div class="dialog-actions">
         <button type="button" id="add-cancel" class="ghost">Done</button>
         <button type="submit" value="next" class="ghost">Save and scan next</button>
@@ -183,6 +185,12 @@
       <label>Subcategory <select id="bulk-subcategory"></select></label>
       <label>Location <select id="bulk-location"></select></label>
     </div>
+    <div class="select-row tag-row">
+      <input id="bulk-tag" placeholder="Tag" autocomplete="off" list="tag-names" aria-label="Tag to add or take off">
+      <button id="bulk-tag-add" class="ghost" disabled>Add tag</button>
+      <button id="bulk-tag-remove" class="ghost" disabled>Take off</button>
+    </div>
+    <datalist id="tag-names"></datalist>
     <p id="select-msg" class="flag" role="status"></p>
     <div class="select-row">
       <button id="select-done" class="ghost">Done</button>

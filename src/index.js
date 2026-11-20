@@ -8,6 +8,7 @@ import { readScan } from "../public/isbn.js";
 import { libraryKeys, startImport, importRows, listImports, undoImport } from "./import.js";
 import { sortByAuthor } from "./sort.js";
 import { KINDS, listStatement, createSection, renameSection, setSectionDeleted, checkSections, bulkSet } from "./sections.js";
+import { cleanTags, setTagStatements, bulkTag } from "./tags.js";
 
 const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8" };
 const json = (data, status = 200) =>
@@ -203,6 +204,12 @@ async function addBook(env, by, body) {
   item.added_date ??= now().slice(0, 10);
   const sectionError = await checkSections(env, item, { collection_id: item.collection_id ?? "default" });
   if (sectionError) return fail(400, sectionError);
+  let tags = [];
+  if ("tags" in body) {
+    const t = cleanTags(body.tags);
+    if (t.error) return fail(400, t.error);
+    tags = t.tags;
+  }
 
   const bCols = Object.keys(book);
   const iCols = Object.keys(item);
@@ -214,6 +221,7 @@ async function addBook(env, by, body) {
       `INSERT INTO shelf_items (id, book_id, created_by, updated_by${iCols.map((c) => ", " + c).join("")})
        VALUES (?, ?, ?, ?${iCols.map(() => ", ?").join("")})`
     ).bind(itemId, bookId, by, by, ...iCols.map((c) => item[c])),
+    ...(tags.length ? setTagStatements(env, itemId, tags) : []),
   ];
   await env.DB.batch(stmts);
   const created = await getItem(env, itemId);
@@ -243,6 +251,12 @@ async function updateItem(env, by, id, body) {
   }
   const sectionError = await checkSections(env, item, before);
   if (sectionError) return fail(400, sectionError);
+  let tags = null;
+  if ("tags" in body) {
+    const t = cleanTags(body.tags);
+    if (t.error) return fail(400, t.error);
+    tags = t.tags;
+  }
   const stmts = [];
   if (Object.keys(book).length) {
     const cols = Object.keys(book);
@@ -259,6 +273,12 @@ async function updateItem(env, by, id, body) {
         `UPDATE shelf_items SET ${cols.map((c) => `${c} = ?`).join(", ")}, updated_at = ?, updated_by = ? WHERE id = ?`
       ).bind(...cols.map((c) => item[c]), now(), by, id)
     );
+  }
+  if (tags) {
+    stmts.push(...setTagStatements(env, id, tags));
+    if (!Object.keys(item).length) {
+      stmts.push(env.DB.prepare("UPDATE shelf_items SET updated_at = ?, updated_by = ? WHERE id = ?").bind(now(), by, id));
+    }
   }
   if (!stmts.length) return fail(400, "Nothing to change.");
   await env.DB.batch(stmts);
@@ -379,6 +399,12 @@ async function handleApi(request, env) {
     else if (id && !restore && method === "DELETE") r = await setSectionDeleted(env, email, kind, id, true, logChange);
     else if (id && restore && method === "POST") r = await setSectionDeleted(env, email, kind, id, false, logChange);
     if (r) return json(r.data, r.status);
+  }
+
+  // One tag on or off several books at once.
+  if (path === "/api/books/tags" && method === "POST") {
+    const r = await bulkTag(env, email, body || {});
+    return json(r.data, r.status);
   }
 
   // Several books at once: subcategory and location.

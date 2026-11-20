@@ -6,6 +6,7 @@
 // shelf details (status, list, shelf, dates, notes...) belong to this copy.
 
 import { isbn13Valid, isbn10Valid, isbn10To13, isbn13To10 } from "./isbn.js";
+import { parseTags, sameTags, wireTagBox } from "./tags.js";
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -83,7 +84,8 @@ function render() {
       <label>Condition <input name="condition" value="${v("condition")}" autocomplete="off"></label>
     </div>
     ${dateBox(it, "added_date", "Added")}
-    ${it.tags.length ? `<p class="muted">Tags: ${esc(it.tags.join(", "))}</p>` : ""}
+    <label>Tags <input name="tags" value="${esc(it.tags.join(", "))}" placeholder="Separate tags with commas" autocomplete="off"></label>
+    <div id="book-tag-suggest" class="tag-suggest" aria-label="Tags you already use"></div>
 
     <h3>Reading</h3>
     <div class="pair">
@@ -103,6 +105,7 @@ function render() {
       ${dateBox(it, "purchase_date", "When")}
       <label>Price <input name="purchase_price" inputmode="decimal" value="${v("purchase_price")}" autocomplete="off"></label>
     </div>`;
+  wireTagBox($("#book-form").elements.tags, $("#book-tag-suggest"), () => s.tags || [])();
 }
 
 // Reads the form, checks it, and returns only what changed, or { error }.
@@ -117,6 +120,8 @@ export function readChanges(form, item) {
 
   const authors = form.elements.authors.value.split("\n").map((a) => a.trim()).filter(Boolean);
   if (JSON.stringify(authors) !== JSON.stringify(item.authors)) out.authors = authors;
+  const tags = parseTags(form.elements.tags.value);
+  if (!sameTags(tags, item.tags || [])) out.tags = tags;
 
   // ISBNs: checked, never guessed. A valid ISBN-10 fills an empty ISBN-13 and the other way round.
   let i13 = val("isbn13").replace(/[^0-9]/g, "");

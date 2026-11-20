@@ -6,7 +6,8 @@ import { wireAdd } from "./add.js";
 import { openBulk, wireBulk } from "./bulk.js";
 import { openBook, wireBook } from "./book.js";
 import { openSections, wireSections } from "./sections.js";
-import { KEEP, bulkChanges, applyBulk, undoBulk, summary } from "./select.js";
+import { KEEP, bulkChanges, applyBulk, undoBulk, summary, applyTagBulk, undoTagBulk, tagSummary } from "./select.js";
+import { wireTagBox, cleanTag } from "./tags.js";
 
 const $ = (sel) => document.querySelector(sel);
 const state = {
@@ -202,6 +203,11 @@ function renderSelectBar() {
   loc.value = state.bulkLoc;
   $("#select-msg").textContent = cols.size > 1 ? "These books are in different collections, so only Location can be set on them together." : "";
 
+  // Tag on or off: the box offers the tags she already uses.
+  $("#tag-names").innerHTML = state.settings.tags.map((t) => `<option value="${esc(t.name)}"></option>`).join("");
+  const typed = cleanTag($("#bulk-tag").value);
+  $("#bulk-tag-add").disabled = $("#bulk-tag-remove").disabled = n === 0 || !typed;
+
   const changes = bulkChanges(sub.value, loc.value);
   const apply = $("#select-apply");
   apply.textContent = `Set on ${n} ${n === 1 ? "book" : "books"}`;
@@ -212,6 +218,7 @@ function setSelecting(on) {
   state.selecting = on;
   state.picked.clear();
   state.bulkSub = state.bulkLoc = KEEP;
+  $("#bulk-tag").value = "";
   render();
 }
 
@@ -234,7 +241,7 @@ async function applySelection() {
     ? async () => {
         try {
           await undoBulk(api, r.before, fields);
-          toast(`Put ${r.done} ${r.done === 1 ? "book" : "books"} back as they were`);
+          toast(r.done === 1 ? "Put 1 book back as it was" : `Put ${r.done} books back as they were`);
         } catch (err) {
           toast(`Couldn't undo all of it: ${err.message}`);
         }
@@ -246,6 +253,32 @@ async function applySelection() {
   } else {
     toast(summary(changes, names, r.done), undo);
   }
+}
+
+async function applyTag(mode) {
+  const ids = [...state.picked];
+  const name = cleanTag($("#bulk-tag").value);
+  if (!ids.length || !name) return;
+  $("#bulk-tag-add").disabled = $("#bulk-tag-remove").disabled = true;
+  const r = await applyTagBulk(api, ids, mode, name);
+  state.picked.clear();
+  $("#bulk-tag").value = "";
+  await reloadSettings(); // the tag menus and counts
+  const n = r.changed.length;
+  const undo = n
+    ? async () => {
+        try {
+          await undoTagBulk(api, r.changed, mode, r.tag);
+          toast(n === 1 ? "Put 1 book back as it was" : `Put ${n} books back as they were`);
+        } catch (err) {
+          toast(`Couldn't undo all of it: ${err.message}`);
+        }
+        await reloadSettings();
+      }
+    : null;
+  const said = tagSummary(mode, r.tag, n, ids.length);
+  if (r.error) toast(n ? `${said}, then stopped: ${r.error}` : `Couldn't save: ${r.error}`, undo);
+  else toast(said, undo);
 }
 
 let toastTimer;
@@ -318,6 +351,12 @@ function wire() {
   $("#bulk-subcategory").addEventListener("change", (e) => { state.bulkSub = e.target.value; renderSelectBar(); });
   $("#bulk-location").addEventListener("change", (e) => { state.bulkLoc = e.target.value; renderSelectBar(); });
   $("#select-apply").addEventListener("click", applySelection);
+  $("#bulk-tag").addEventListener("input", renderSelectBar);
+  $("#bulk-tag").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); if (!$("#bulk-tag-add").disabled) applyTag("add"); }
+  });
+  $("#bulk-tag-add").addEventListener("click", () => applyTag("add"));
+  $("#bulk-tag-remove").addEventListener("click", () => applyTag("remove"));
   $("#books").addEventListener("keydown", (e) => {
     if (!state.selecting || (e.key !== " " && e.key !== "Enter")) return;
     const row = e.target.closest("[data-pick]");
@@ -370,9 +409,10 @@ function wire() {
   wireImport();
   $("#import-open").addEventListener("click", fromSettings(() => openImport(state.settings, loadBooks)));
 
-  wireAdd({ api, toast, fillSelects, onChange: loadBooks });
+  wireAdd({ api, toast, fillSelects, onChange: reloadSettings }); // a new tag shows up in the menus
   wireBulk({ api, onChange: loadBooks });
-  wireBook({ api, toast, onChange: loadBooks });
+  wireBook({ api, toast, onChange: reloadSettings });
+  refreshAddTags = wireTagBox($("#add-form").elements.tags, $("#add-tag-suggest"), () => state.settings.tags);
   wireSections({ api, toast, getSettings: () => state.settings, onChange: reloadSettings });
   $("#sections-open").addEventListener("click", fromSettings(openSections));
   $("#add-collection").addEventListener("change", fillAddSubcategories);
@@ -399,7 +439,9 @@ function fillSelects() {
   $("#add-collection-wrap").hidden = cols.length < 2;
   fillAddSubcategories();
   $("#add-location").innerHTML = noneOptions(state.settings.locations);
+  refreshAddTags();
 }
+let refreshAddTags = () => {};
 
 const noneOptions = (items) =>
   `<option value="">None</option>${items.map((i) => `<option value="${esc(i.id)}">${esc(i.name)}</option>`).join("")}`;
