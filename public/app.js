@@ -134,7 +134,7 @@ function render() {
   const ul = $("#books");
   ul.className = `books ${state.view}${state.selecting ? " picking" : ""}`;
   $("#view-toggle").textContent = state.view === "list" ? "Covers" : "List";
-  $("#show-deleted").textContent = state.showDeleted ? "Back to library" : "Recently removed";
+  $("#deleted-back").hidden = !state.showDeleted;
   const n = state.books.length;
   $("#count").textContent = state.showDeleted
     ? `${n} removed ${n === 1 ? "book" : "books"}. Restore any of them here.`
@@ -296,12 +296,20 @@ function wire() {
     savePref("view", state.view);
     render();
   });
-  $("#show-deleted").addEventListener("click", () => {
-    state.showDeleted = !state.showDeleted;
+  // Settings holds what she sets up once or uses now and then. Each item
+  // closes it first, so she lands on the screen she picked.
+  const settingsDlg = $("#settings-dialog");
+  const fromSettings = (fn) => () => { settingsDlg.close(); fn(); };
+  $("#settings-open").addEventListener("click", () => settingsDlg.showModal());
+  const showRemoved = (on) => {
+    state.showDeleted = on;
     state.selecting = false;
     state.picked.clear();
     loadBooks();
-  });
+  };
+  $("#show-deleted").addEventListener("click", fromSettings(() => showRemoved(true)));
+  $("#deleted-back").addEventListener("click", () => showRemoved(false));
+  $("#export").addEventListener("click", () => settingsDlg.close());
 
   $("#select-toggle").addEventListener("click", () => setSelecting(!state.selecting));
   $("#select-done").addEventListener("click", () => setSelecting(false));
@@ -360,13 +368,13 @@ function wire() {
   });
 
   wireImport();
-  $("#import-open").addEventListener("click", () => openImport(state.settings, loadBooks));
+  $("#import-open").addEventListener("click", fromSettings(() => openImport(state.settings, loadBooks)));
 
   wireAdd({ api, toast, fillSelects, onChange: loadBooks });
   wireBulk({ api, onChange: loadBooks });
   wireBook({ api, toast, onChange: loadBooks });
   wireSections({ api, toast, getSettings: () => state.settings, onChange: reloadSettings });
-  $("#sections-open").addEventListener("click", openSections);
+  $("#sections-open").addEventListener("click", fromSettings(openSections));
   $("#add-collection").addEventListener("change", fillAddSubcategories);
   $("#bulk-open").addEventListener("click", () => openBulk(state.settings));
 }
