@@ -89,6 +89,15 @@
     </form>
   </dialog>
 
+  <section id="stats-view" hidden>
+    <div class="top">
+      <h2>Library stats</h2>
+      <button id="stats-close" class="ghost">Back to library</button>
+    </div>
+    <p class="muted">Tap a row to see those books.</p>
+    <div id="stats-body"></div>
+  </section>
+
   <section id="import-view" hidden>
     <div class="top">
       <h2>Import from Libib</h2>
@@ -235,6 +244,10 @@
     <form method="dialog" id="settings-form">
       <h2>Settings</h2>
       <ul class="settings-list">
+        <li><button type="button" id="stats-open" class="settings-item">
+          <span>Library stats</span>
+          <span class="muted">Counts by status, location, subcategory, tag and author</span>
+        </button></li>
         <li><button type="button" id="sections-open" class="settings-item">
           <span>Subcategories and locations</span>
           <span class="muted">Add, rename or remove them</span>

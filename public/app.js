@@ -9,6 +9,7 @@ import { openSections, wireSections } from "./sections.js";
 import { KEEP, bulkChanges, applyBulk, undoBulk, summary, applyTagBulk, undoTagBulk, tagSummary } from "./select.js";
 import { wireTagBox, cleanTag } from "./tags.js";
 import { wireHub } from "./hub.js";
+import { wireStats } from "./stats.js";
 
 const $ = (sel) => document.querySelector(sel);
 const state = {
@@ -427,9 +428,28 @@ function wire() {
     getSettings: () => state.settings,
     onLeave: () => { savePref("hub", ""); showLibrary(true); },
   });
+  // Stats: a tapped row comes back as one menu set, with every other one back to All.
+  const stats = wireStats({ api, onFilter: showFiltered });
+  $("#stats-open").addEventListener("click", fromSettings(() => stats.open()));
   $("#hub-open").addEventListener("click", fromSettings(() => { savePref("hub", "1"); showLibrary(false); hub.enter(); }));
 }
 let hub = { refresh() {}, on: false };
+
+function showFiltered(key, value) {
+  state.status = "";
+  for (const k of FILTERS) state[k] = "";
+  state.q = "";
+  state.showDeleted = false;
+  if (key === "status") state.status = value;
+  else if (key === "q") state.q = value;
+  else if (FILTERS.includes(key)) state[key] = value;
+  $("#search").value = state.q;
+  renderChips();
+  renderFilters();
+  // Open the menus so she sees which one is set.
+  $("#more-filters").open = FILTERS.includes(key);
+  loadBooks();
+}
 
 function showLibrary(on) {
   $("#main-top").hidden = !on;

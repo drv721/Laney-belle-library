@@ -9,6 +9,7 @@ import { libraryKeys, startImport, importRows, listImports, undoImport } from ".
 import { sortByAuthor } from "./sort.js";
 import { KINDS, listStatement, createSection, renameSection, setSectionDeleted, checkSections, bulkSet } from "./sections.js";
 import { cleanTags, setTagStatements, bulkTag } from "./tags.js";
+import { libraryStats } from "./stats.js";
 
 const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8" };
 const json = (data, status = 200) =>
@@ -376,6 +377,8 @@ async function handleApi(request, env) {
       locations: locations.results,
     });
   }
+
+  if (path === "/api/stats" && method === "GET") return json(await libraryStats(env));
 
   // Rename a status label (the code, and so every book, stays the same).
   let m = path.match(/^\/api\/statuses\/([a-z0-9_]+)$/);
