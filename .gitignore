@@ -1,3 +1,6 @@
 node_modules/
 .wrangler/
 .dev.vars
+.restore-practice/
+backup.json
+restore.sql
