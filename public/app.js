@@ -6,6 +6,7 @@ import { wireAdd } from "./add.js";
 import { openBulk, wireBulk } from "./bulk.js";
 import { openBook, wireBook } from "./book.js";
 import { openSections, wireSections } from "./sections.js";
+import { KEEP, bulkChanges, applyBulk, undoBulk, summary } from "./select.js";
 
 const $ = (sel) => document.querySelector(sel);
 const state = {
@@ -20,6 +21,10 @@ const state = {
   sort: readPref("sort", "title"),
   q: "",
   showDeleted: false,
+  selecting: false,
+  picked: new Set(),
+  bulkSub: "__keep",
+  bulkLoc: "__keep",
   view: readPref("view", "list"),
 };
 
@@ -65,6 +70,9 @@ async function loadBooks() {
   const books = await api(`/api/books?${p}`);
   if (ticket !== loadBooks.ticket) return;
   state.books = books;
+  // Only books on screen stay ticked, so Set never touches a book she can't see.
+  const shown = new Set(books.map((b) => b.id));
+  for (const id of state.picked) if (!shown.has(id)) state.picked.delete(id);
   render();
 }
 
@@ -124,7 +132,7 @@ function coverHtml(b) {
 
 function render() {
   const ul = $("#books");
-  ul.className = `books ${state.view}`;
+  ul.className = `books ${state.view}${state.selecting ? " picking" : ""}`;
   $("#view-toggle").textContent = state.view === "list" ? "Covers" : "List";
   $("#show-deleted").textContent = state.showDeleted ? "Back to library" : "Recently removed";
   const n = state.books.length;
@@ -139,12 +147,22 @@ function render() {
   ul.innerHTML = state.books
     .map((b) => {
       const authors = b.authors.join(", ");
-      const actions = state.showDeleted
+      const picked = state.picked.has(b.id);
+      const actions = state.selecting
+        ? `<input type="checkbox" class="pick" tabindex="-1" aria-hidden="true" ${picked ? "checked" : ""}>`
+        : state.showDeleted
         ? `<button class="status-btn" data-restore="${b.id}">Restore</button>`
         : `<button class="status-btn ${esc(b.status_code)}" data-cycle="${b.id}" title="Tap to change">${esc(statusLabel(b.status_code))}</button>
            <button class="status-btn ghost" data-remove="${b.id}" aria-label="Remove ${esc(b.title)}">Remove</button>`;
       const where = [b.subcategory, b.location].filter(Boolean).join(" · ");
       const name = `<div class="title">${esc(b.title)}</div><div class="author">${esc(authors)}</div>${where ? `<div class="meta">${esc(where)}</div>` : ""}`;
+      if (state.selecting) {
+        return `<li data-pick="${b.id}" class="${picked ? "picked" : ""}" role="checkbox" aria-checked="${picked}" tabindex="0">
+          ${coverHtml(b)}
+          <div>${name}</div>
+          <div class="row-actions">${actions}</div>
+        </li>`;
+      }
       return `<li${state.showDeleted ? "" : ` data-open="${b.id}"`}>
         ${coverHtml(b)}
         <div>${state.showDeleted ? name : `<button class="open-book" data-open="${b.id}" aria-label="Open ${esc(b.title)}">${name}</button>`}</div>
@@ -152,6 +170,82 @@ function render() {
       </li>`;
     })
     .join("");
+  renderSelectBar();
+}
+
+// ---------- select mode ----------
+function renderSelectBar() {
+  document.body.classList.toggle("selecting", state.selecting);
+  $("#select-bar").hidden = !state.selecting;
+  $("#select-toggle").hidden = state.showDeleted;
+  $("#select-toggle").textContent = state.selecting ? "Done" : "Select";
+  if (!state.selecting) return;
+  const n = state.picked.size;
+  $("#select-count").textContent = `${n} selected`;
+  $("#select-all").disabled = n === state.books.length;
+  $("#select-clear").disabled = n === 0;
+
+  // A subcategory belongs to one collection, so it can only be set when the
+  // ticked books all share one.
+  const picked = state.books.filter((b) => state.picked.has(b.id));
+  const cols = new Set(picked.map((b) => b.collection_id));
+  const sub = $("#bulk-subcategory");
+  const subs = cols.size === 1 ? state.settings.subcategories.filter((s) => cols.has(s.collection_id)) : [];
+  sub.innerHTML = [[KEEP, "Leave as is"], ...(cols.size === 1 ? [["", "None"]] : []), ...subs.map((s) => [s.id, s.name])]
+    .map(([v, label]) => `<option value="${esc(v)}">${esc(label)}</option>`).join("");
+  if (![...sub.options].some((o) => o.value === state.bulkSub)) state.bulkSub = KEEP;
+  sub.value = state.bulkSub;
+  const loc = $("#bulk-location");
+  loc.innerHTML = [[KEEP, "Leave as is"], ["", "None"], ...state.settings.locations.map((l) => [l.id, l.name])]
+    .map(([v, label]) => `<option value="${esc(v)}">${esc(label)}</option>`).join("");
+  if (![...loc.options].some((o) => o.value === state.bulkLoc)) state.bulkLoc = KEEP;
+  loc.value = state.bulkLoc;
+  $("#select-msg").textContent = cols.size > 1 ? "These books are in different collections, so only Location can be set on them together." : "";
+
+  const changes = bulkChanges(sub.value, loc.value);
+  const apply = $("#select-apply");
+  apply.textContent = `Set on ${n} ${n === 1 ? "book" : "books"}`;
+  apply.disabled = n === 0 || !Object.keys(changes).length;
+}
+
+function setSelecting(on) {
+  state.selecting = on;
+  state.picked.clear();
+  state.bulkSub = state.bulkLoc = KEEP;
+  render();
+}
+
+async function applySelection() {
+  const ids = [...state.picked];
+  const changes = bulkChanges($("#bulk-subcategory").value, $("#bulk-location").value);
+  if (!ids.length || !Object.keys(changes).length) return;
+  const names = {
+    subcategory: $("#bulk-subcategory").selectedOptions[0]?.text,
+    location: $("#bulk-location").selectedOptions[0]?.text,
+  };
+  const apply = $("#select-apply");
+  apply.disabled = true;
+  apply.textContent = "Saving...";
+  const fields = Object.keys(changes);
+  const r = await applyBulk(api, ids, changes);
+  state.picked.clear();
+  await reloadSettings(); // counts on the Subcategories and locations screen
+  const undo = r.done
+    ? async () => {
+        try {
+          await undoBulk(api, r.before, fields);
+          toast(`Put ${r.done} ${r.done === 1 ? "book" : "books"} back as they were`);
+        } catch (err) {
+          toast(`Couldn't undo all of it: ${err.message}`);
+        }
+        await reloadSettings();
+      }
+    : null;
+  if (r.error) {
+    toast(r.done ? `${summary(changes, names, r.done)}, then stopped: ${r.error}` : `Couldn't save: ${r.error}`, undo);
+  } else {
+    toast(summary(changes, names, r.done), undo);
+  }
 }
 
 let toastTimer;
@@ -204,11 +298,36 @@ function wire() {
   });
   $("#show-deleted").addEventListener("click", () => {
     state.showDeleted = !state.showDeleted;
+    state.selecting = false;
+    state.picked.clear();
     loadBooks();
+  });
+
+  $("#select-toggle").addEventListener("click", () => setSelecting(!state.selecting));
+  $("#select-done").addEventListener("click", () => setSelecting(false));
+  $("#select-all").addEventListener("click", () => { for (const b of state.books) state.picked.add(b.id); render(); });
+  $("#select-clear").addEventListener("click", () => { state.picked.clear(); render(); });
+  $("#bulk-subcategory").addEventListener("change", (e) => { state.bulkSub = e.target.value; renderSelectBar(); });
+  $("#bulk-location").addEventListener("change", (e) => { state.bulkLoc = e.target.value; renderSelectBar(); });
+  $("#select-apply").addEventListener("click", applySelection);
+  $("#books").addEventListener("keydown", (e) => {
+    if (!state.selecting || (e.key !== " " && e.key !== "Enter")) return;
+    const row = e.target.closest("[data-pick]");
+    if (!row) return;
+    e.preventDefault();
+    row.click();
   });
 
   $("#books").addEventListener("click", async (e) => {
     const t = e.target;
+    const pickRow = state.selecting && t.closest("[data-pick]");
+    if (pickRow) {
+      const id = pickRow.dataset.pick;
+      if (state.picked.has(id)) state.picked.delete(id); else state.picked.add(id);
+      render();
+      if (e.detail === 0) $(`[data-pick="${id}"]`)?.focus(); // keyboard: keep her place
+      return;
+    }
     try {
       if (t.dataset.cycle) {
         const book = state.books.find((b) => b.id === t.dataset.cycle);

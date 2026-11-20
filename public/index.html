@@ -45,7 +45,10 @@
   </nav>
 
   <main>
-    <p id="count" class="muted"></p>
+    <div class="list-head">
+      <p id="count" class="muted"></p>
+      <button id="select-toggle" class="ghost">Select</button>
+    </div>
     <ul id="books" class="books list"></ul>
     <p id="empty" class="empty" hidden>No books yet. Tap Add book to put the first one on the shelf.</p>
   </main>
@@ -173,6 +176,25 @@
       </div>
     </form>
   </dialog>
+
+  <div id="select-bar" class="select-bar" role="region" aria-label="Selected books" hidden>
+    <div class="select-row">
+      <span id="select-count">0 selected</span>
+      <span class="spacer"></span>
+      <button id="select-all" class="ghost">Select all</button>
+      <button id="select-clear" class="ghost">Clear</button>
+    </div>
+    <div class="select-row pair">
+      <label>Subcategory <select id="bulk-subcategory"></select></label>
+      <label>Location <select id="bulk-location"></select></label>
+    </div>
+    <p id="select-msg" class="flag" role="status"></p>
+    <div class="select-row">
+      <button id="select-done" class="ghost">Done</button>
+      <span class="spacer"></span>
+      <button id="select-apply" class="primary" disabled>Set on 0 books</button>
+    </div>
+  </div>
 
   <dialog id="sections-dialog">
     <form method="dialog" id="sections-form">
