@@ -47,6 +47,9 @@ No database change is needed for this, so no migration runs. Pull, then `npx wra
 - **Locations** start as stand-ins, Bookcase 1 to Bookcase 6, to rename once the real names are known. Location is the menu; the free-text **Shelf** box is still there for "top shelf, left".
 - Both are set on the book page and in Add a book, and managed on **Subcategories and locations** (button at the bottom): add, rename, or remove. A new name changes on every book at once. Remove has Undo, and an undone one comes back with every book that was in it (removing only hides it).
 - The export spreadsheet has subcategory and location columns.
+- **Select** (beside the book count) sets a subcategory and a location on many books at once. Tap books to tick them, or Select all to tick everything the list shows. Pick a subcategory, a location or both in the bar at the bottom ("Leave as is" keeps what each book has), then Set. Undo puts every book back as it was. Only books on screen stay ticked, so a change never reaches a book she can't see. A good way to sort the library: filter Subcategory to Not set yet, search an author or series, Select all, Set.
+- Books from different collections can share a location, but a subcategory can only be set on books from one collection.
+- Saves through `POST /api/books/bulk`, 100 books per call, with one change-log row per book. Files: `bulkSet` in `src/sections.js`, `public/select.js`. Tests: `test/select.test.mjs`.
 - Files: `migrations/0002_subcategories_locations.sql`, `src/sections.js` (API), `src/sort.js` (author sort), `public/sections.js` (the screen), menus in `public/app.js`, `public/book.js`, `public/add.js`. Tests: `test/sort.test.mjs`, `test/book.test.mjs`.
 
 This one changes the database: two new tables and two new columns on her copies, nothing renamed or removed. Pull, add them to the live database, then deploy:

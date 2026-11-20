@@ -101,3 +101,63 @@ export async function checkSections(env, item, before) {
   }
   return null;
 }
+
+// Set a subcategory and/or location on several books at once.
+// body: { ids: [...], subcategory_id?: id|null, location_id?: id|null }
+// Only the fields sent change. The app sends up to BULK_MAX ids per call.
+// Answers with each book's earlier values, so Undo can put them back.
+export const BULK_MAX = 100;
+const SHELF_ID = /^[0-9a-f-]{36}$/;
+
+export async function bulkSet(env, by, body) {
+  const bad = (error) => ({ status: 400, data: { error } });
+  const ids = Array.isArray(body.ids) ? [...new Set(body.ids)] : [];
+  if (!ids.length) return bad("Pick at least one book.");
+  if (ids.length > BULK_MAX) return bad(`Up to ${BULK_MAX} books at a time.`);
+  if (!ids.every((id) => typeof id === "string" && SHELF_ID.test(id))) return bad("Those books weren't recognised.");
+  const fields = ["subcategory_id", "location_id"].filter((f) => f in body);
+  if (!fields.length) return bad("Pick a subcategory or a location to set.");
+  for (const f of fields) if (body[f] !== null && typeof body[f] !== "string") return bad("That choice wasn't recognised.");
+
+  const idsJson = JSON.stringify(ids);
+  const inIds = "s.id IN (SELECT value FROM json_each(?))";
+  const { results: before } = await env.DB.prepare(
+    // A removed subcategory or location reads as none, as it does everywhere else.
+    `SELECT s.id, s.collection_id, sc.id AS subcategory_id, lo.id AS location_id FROM shelf_items s
+       LEFT JOIN subcategories sc ON sc.id = s.subcategory_id AND sc.deleted_at IS NULL
+       LEFT JOIN locations lo ON lo.id = s.location_id AND lo.deleted_at IS NULL
+      WHERE ${inIds} AND s.deleted_at IS NULL`
+  ).bind(idsJson).all();
+  if (before.length !== ids.length) return { status: 409, data: { error: "Some of these books were removed. Refresh the list and try again." } };
+
+  if (body.subcategory_id) {
+    const sub = await env.DB.prepare("SELECT * FROM subcategories WHERE id = ? AND deleted_at IS NULL").bind(body.subcategory_id).first();
+    if (!sub) return bad("That subcategory doesn't exist.");
+    const elsewhere = before.filter((b) => b.collection_id !== sub.collection_id).length;
+    if (elsewhere) return bad(`${elsewhere} of these books ${elsewhere === 1 ? "is" : "are"} in another collection, so ${sub.name} can't go on ${elsewhere === 1 ? "it" : "them"}.`);
+  }
+  if (body.location_id) {
+    const loc = await env.DB.prepare("SELECT id FROM locations WHERE id = ? AND deleted_at IS NULL").bind(body.location_id).first();
+    if (!loc) return bad("That location doesn't exist.");
+  }
+
+  const set = fields.map((f) => `${f} = ?`).join(", ");
+  const values = fields.map((f) => body[f]);
+  const snapshot = (prefix) => `json_object(${fields.map((f) => `'${f}', ${prefix}${f}`).join(", ")})`;
+  const after = `json_object(${fields.map((f) => `'${f}', ?`).join(", ")})`;
+  const stamp = now();
+  await env.DB.batch([
+    // The change log first, so it records each book's values from before the update.
+    env.DB.prepare(
+      `INSERT INTO change_log (by_email, entity, entity_id, action, before_json, after_json)
+       SELECT ?, 'shelf_item', s.id, 'bulk_update', ${snapshot("s.")}, ${after} FROM shelf_items s WHERE ${inIds}`
+    ).bind(by, ...values, idsJson),
+    env.DB.prepare(
+      `UPDATE shelf_items AS s SET ${set}, updated_at = ?, updated_by = ? WHERE ${inIds}`
+    ).bind(...values, stamp, by, idsJson),
+  ]);
+  return {
+    status: 200,
+    data: { updated: ids.length, before: before.map(({ id, subcategory_id, location_id }) => ({ id, subcategory_id, location_id })) },
+  };
+}

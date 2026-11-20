@@ -7,7 +7,7 @@ import { lookupCovers, lookupBook, searchBooks, isCoverUrl, MAX_ISBNS_PER_CALL }
 import { readScan } from "../public/isbn.js";
 import { libraryKeys, startImport, importRows, listImports, undoImport } from "./import.js";
 import { sortByAuthor } from "./sort.js";
-import { KINDS, listStatement, createSection, renameSection, setSectionDeleted, checkSections } from "./sections.js";
+import { KINDS, listStatement, createSection, renameSection, setSectionDeleted, checkSections, bulkSet } from "./sections.js";
 
 const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8" };
 const json = (data, status = 200) =>
@@ -379,6 +379,12 @@ async function handleApi(request, env) {
     else if (id && !restore && method === "DELETE") r = await setSectionDeleted(env, email, kind, id, true, logChange);
     else if (id && restore && method === "POST") r = await setSectionDeleted(env, email, kind, id, false, logChange);
     if (r) return json(r.data, r.status);
+  }
+
+  // Several books at once: subcategory and location.
+  if (path === "/api/books/bulk" && method === "POST") {
+    const r = await bulkSet(env, email, body);
+    return json(r.data, r.status);
   }
 
   if (path === "/api/books" && method === "GET") return json(await listItems(env, url));
