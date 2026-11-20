@@ -1,7 +1,7 @@
 // The import screen. She picks one or more Libib files, sees every book with
 // its cover, decides what to do with duplicates, and only then taps Import.
 
-import { mapLibibCsv, duplicateKey } from "./libib-map.js";
+import { mapLibibCsv, duplicateKey, titleKey, mightBeSame } from "./libib-map.js";
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -100,6 +100,12 @@ async function markDuplicates() {
       seen.get(k).push({ file, r });
     }
   }
+  const byTitle = new Map(); // title -> [{file, row}]
+  for (const [, list] of seen) for (const o of list) {
+    const t = titleKey(o.r.book);
+    if (!byTitle.has(t)) byTitle.set(t, []);
+    byTitle.get(t).push(o);
+  }
   for (const file of imp.files) {
     for (const r of file.rows) {
       r.flags = [];
@@ -108,6 +114,15 @@ async function markDuplicates() {
       const others = seen.get(r.key).filter((o) => o.r !== r);
       for (const o of others) {
         r.flags.push(o.file === file ? `Same book as row ${o.r.rowNumber}` : `Also in ${o.file.fileName}, row ${o.r.rowNumber}`);
+      }
+      // Same title with a missing ISBN or author: shown for her to decide.
+      // Skip duplicates leaves these alone, since the keys differ.
+      if (!inLibrary.has(r.key) && existing.some((e) => mightBeSame(r.book, e))) {
+        r.flags.push("Might already be in your library, check the edition");
+      }
+      for (const o of byTitle.get(titleKey(r.book)) || []) {
+        if (o.r === r || o.r.key === r.key || !mightBeSame(r.book, o.r.book)) continue;
+        r.flags.push(o.file === file ? `Might be the same book as row ${o.r.rowNumber}` : `Might be the same as ${o.file.fileName}, row ${o.r.rowNumber}`);
       }
       r.duplicate = r.flags.length > 0;
     }

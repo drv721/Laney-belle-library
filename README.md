@@ -20,6 +20,8 @@ Statuses start as Libib's four: Not begun, In progress, Completed, Abandoned. Bo
 - Duplicates are only skipped when she unticks them, or taps Skip duplicates and checks the result.
 - Import saves 50 books at a time. Every original row is kept in `libib_rows`. Past imports can each be undone, which moves their books to Recently removed.
 - Libib's "group" column goes in as a tag for now.
+- Mapping checked against a real Libib export (Nov 2026): `length` is pages, `began` and `completed` are reading dates, several authors sit in one cell as "First Last, First Last" (a PhD or Jr. stays with its name), and an ISBN-10 found in the ISBN-13 column is used. Author cells that look jumbled in Libib are flagged to check after import.
+- "Might be the same book" flags the same title where one copy has no ISBN or no author. Skip duplicates leaves these for her to decide.
 - Files: `public/libib-map.js` (reads the file), `public/import.js` (the screen), `src/import.js` (saving and undo), `src/covers.js` (covers). Tests: `npm test`.
 
 Covers come from Open Library, about one request a second, 25 books per request, stored by cover ID (their rules allow that without the ISBN limit). A book added by hand with an ISBN gets its cover the same way. Optional: add `"OL_CONTACT": "an email"` under `vars` in `wrangler.jsonc` for Open Library's higher limit.

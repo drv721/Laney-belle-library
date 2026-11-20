@@ -3,9 +3,9 @@
 // It writes nothing. Weekend 2's import screen calls it, shows her the result,
 // and only saves after she approves.
 //
-// The column names below come from Libib's published import template.
-// Libib doesn't document its export columns, so the first real export
-// decides: any header not listed here is kept in the raw row and reported.
+// The column names below come from Melanie's real Libib export (Nov 2026),
+// plus the older names in Libib's published import template. Any header not
+// listed here is kept in the raw row and reported.
 
 import { isbn13Valid, isbn10Valid, isbn10To13 } from "./isbn.js";
 
@@ -25,12 +25,15 @@ const COLUMNS = {
   publisher: "book.publisher",
   publish_date: "book.publish_date",
   description: "book.description",
+  length: "book.pages",
   length_of: "book.pages",
   status: "item.status_code",
   rating: "item.rating",
   review: "item.review",
   review_date: "item.review_date",
   notes: "item.notes",
+  began: "item.began_date",
+  completed: "item.completed_date",
   began_date: "item.began_date",
   completed_date: "item.completed_date",
   added: "item.added_date",
@@ -38,10 +41,24 @@ const COLUMNS = {
   price: "item.purchase_price",
   tags: "tags",
   group: "group",
-  // Video and music fields: kept in the raw row only.
+  // Kept in the raw row only. first_name and last_name repeat the first
+  // author; collection is Libib's own collection name.
+  id: "raw",
+  item_type: "raw",
+  first_name: "raw",
+  last_name: "raw",
+  collection: "raw",
+  // Video, music and game fields.
   number_of_discs: "raw",
+  number_of_players: "raw",
+  age_group: "raw",
+  ensemble: "raw",
   aspect_ratio: "raw",
+  esrb: "raw",
 };
+
+// The two names a column can go by; the first one present in the file wins.
+const ALIASES = { length: "length_of", began: "began_date", completed: "completed_date" };
 
 export function normalizeHeader(h) {
   return String(h).replace(/^﻿/, "").trim().toLowerCase().replace(/[\s-]+/g, "_");
@@ -92,11 +109,29 @@ function num(v, field, warnings, { int = false } = {}) {
   return n;
 }
 
-// Libib's separator for several authors or tags isn't documented. Until the
-// real export shows it, authors stay as one name per row unless the cell
-// uses a semicolon, so "Morrison, Toni" is never split into two people.
 function splitList(v, sep) {
   return v.split(sep).map((s) => s.trim()).filter(Boolean);
+}
+
+// Libib's export puts several authors in one cell as "First Last, First Last".
+// A part like "PhD" or "Jr." belongs to the name before it. When the cell is
+// exactly "Last, First" for the author in first_name and last_name, it's one
+// person. A cell with a semicolon, or a part that starts in lower case, was
+// jumbled in Libib, so it's split as well as it can be and flagged.
+const SUFFIX = /^(ph\.?\s?d\.?|m\.?d\.?|jr\.?|sr\.?|ii|iii|iv|esq\.?|psy\.?d\.?|ed\.?d\.?|lcsw|lmft|rn)$/i;
+export function splitAuthors(cell, first = "", last = "", warnings = []) {
+  const v = cell.trim();
+  if (!v) return [];
+  if (first.trim() && last.trim() && v === `${last.trim()}, ${first.trim()}`) return [`${first.trim()} ${last.trim()}`];
+  const names = [];
+  for (const part of splitList(v, v.includes(";") ? ";" : ",")) {
+    if (names.length && SUFFIX.test(part)) names[names.length - 1] += `, ${part}`;
+    else names.push(part);
+  }
+  if (v.includes(";") || names.some((n) => /^\p{Ll}/u.test(n))) {
+    warnings.push(`creators: "${v}" looks jumbled in Libib, check the authors after import`);
+  }
+  return names.slice(0, 20);
 }
 
 export function duplicateKey(book) {
@@ -106,33 +141,54 @@ export function duplicateKey(book) {
   return `title:${t}|${a}`;
 }
 
+// Looser than duplicateKey: the same title where one copy has no ISBN or no
+// author, or both have the same first author. Two copies with different
+// ISBNs are two editions and don't match. The screen shows these as
+// "might be the same book" for her to decide; nothing is skipped for them.
+export function titleKey(book) {
+  return (book.title || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+export function mightBeSame(a, b) {
+  if (!titleKey(a) || titleKey(a) !== titleKey(b)) return false;
+  if (a.isbn13 && b.isbn13) return false;
+  const first = (x) => (x.authors?.[0] || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return !first(a) || !first(b) || first(a) === first(b);
+}
+
 export function mapLibibCsv(text, { fileName = "" } = {}) {
   const table = parseCsv(text);
   if (!table.length) return { fileName, rows: [], unknownHeaders: [], missingHeaders: Object.keys(COLUMNS), duplicates: [] };
 
   const headers = table[0].map(normalizeHeader);
   const unknownHeaders = headers.filter((h) => h && !(h in COLUMNS));
-  const missingHeaders = Object.keys(COLUMNS).filter((h) => !headers.includes(h));
+  const older = new Set(Object.values(ALIASES));
+  const missingHeaders = Object.keys(COLUMNS)
+    .filter((h) => !older.has(h) && !headers.includes(h) && !headers.includes(ALIASES[h]));
 
   const rows = table.slice(1).map((cells, i) => {
     const raw = {};
     headers.forEach((h, j) => { raw[table[0][j].trim() || `column_${j + 1}`] = cells[j] ?? ""; });
-    const get = (h) => { const j = headers.indexOf(h); return j < 0 ? "" : (cells[j] ?? ""); };
+    const get = (h) => {
+      let j = headers.indexOf(h);
+      if (j < 0 && ALIASES[h]) j = headers.indexOf(ALIASES[h]);
+      return j < 0 ? "" : (cells[j] ?? "");
+    };
     const warnings = [];
 
     const book = { title: get("title").trim(), authors: [], isbn13: null, isbn10: null, publisher: null, publish_date: null, description: null, pages: null, source: "libib" };
     const item = { status_code: "not_begun", rating: null, review: null, review_date: null, notes: null, began_date: null, completed_date: null, added_date: null, copies: 1, purchase_price: null };
 
-    const creators = get("creators").trim();
-    book.authors = creators ? (creators.includes(";") ? splitList(creators, ";") : [creators]) : [];
+    book.authors = splitAuthors(get("creators"), get("first_name"), get("last_name"), warnings);
 
     const e13 = get("ean_isbn13").replace(/[^0-9]/g, "");
     const u10 = get("upc_isbn10").replace(/[^0-9Xx]/g, "").toUpperCase();
     if (e13) {
       if (isbn13Valid(e13)) book.isbn13 = e13;
+      // Libib sometimes holds an ISBN-10 in the ISBN-13 column.
+      else if (e13.length === 10 && isbn10Valid(e13)) { book.isbn10 = e13; book.isbn13 = isbn10To13(e13); }
       else warnings.push(`ean_isbn13: "${get("ean_isbn13")}" isn't a valid ISBN`);
     }
-    if (u10) {
+    if (u10 && u10 !== book.isbn10) {
       if (isbn10Valid(u10)) {
         book.isbn10 = u10;
         if (!book.isbn13) book.isbn13 = isbn10To13(u10);
@@ -142,7 +198,7 @@ export function mapLibibCsv(text, { fileName = "" } = {}) {
     book.publisher = get("publisher").trim() || null;
     book.publish_date = cleanDate(get("publish_date"), "publish_date", warnings);
     book.description = get("description").trim() || null;
-    book.pages = num(get("length_of"), "length_of", warnings, { int: true });
+    book.pages = num(get("length"), "length", warnings, { int: true });
 
     const st = get("status").trim();
     if (st) {
@@ -154,8 +210,8 @@ export function mapLibibCsv(text, { fileName = "" } = {}) {
     item.review = get("review").trim() || null;
     item.review_date = cleanDate(get("review_date"), "review_date", warnings);
     item.notes = get("notes").trim() || null;
-    item.began_date = cleanDate(get("began_date"), "began_date", warnings);
-    item.completed_date = cleanDate(get("completed_date"), "completed_date", warnings);
+    item.began_date = cleanDate(get("began"), "began", warnings);
+    item.completed_date = cleanDate(get("completed"), "completed", warnings);
     item.added_date = cleanDate(get("added"), "added", warnings);
     const copies = num(get("copies"), "copies", warnings, { int: true });
     if (copies && copies > 0) item.copies = copies;

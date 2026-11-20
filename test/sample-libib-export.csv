@@ -1,0 +1,4 @@
+id,item_type,title,creators,first_name,last_name,collection,ean_isbn13,upc_isbn10,description,publisher,publish_date,group,tags,notes,price,length,number_of_discs,number_of_players,age_group,ensemble,aspect_ratio,esrb,rating,review,review_date,status,began,completed,added,copies
+aa1,book,"Test Book One","Ann Writer, PhD, Bo Helper (Illustrator)",Ann,PhD,"Test Collection",9781401603908,,"About one.",Pub,2017-10-03,,,,,368,,,,,,,,,,,2025-01-02,2025-02-03,2025-03-01,1
+aa2,book,"Test Book Two","Cy Solo",Cy,Solo,"Test Collection",0306406152,,,,,,,,,,,,,,,,,,,,,,2025-03-01,2
+aa3,book,"Test Book Three","Dee; Edited by Ell, Em",Dee;,Em,"Test Collection",,,,,,,,,,,,,,,,,,,,,,,2025-03-01,1
