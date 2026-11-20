@@ -182,8 +182,23 @@ async function addBook(env, by, body) {
 async function updateItem(env, by, id, body) {
   const before = await getItem(env, id);
   if (!before) return fail(404, "No such book.");
+  // The book page sends only what changed. These checks keep a bad edit
+  // from blanking a title or pointing a cover anywhere but Open Library.
+  if ("authors" in body && !(Array.isArray(body.authors) && body.authors.every((a) => typeof a === "string"))) {
+    return fail(400, "Authors need to be a list of names.");
+  }
   const book = pick(body, BOOK_FIELDS);
   const item = pick(body, ITEM_FIELDS);
+  if ("title" in book) {
+    book.title = String(book.title ?? "").trim();
+    if (!book.title) return fail(400, "A title is needed.");
+  }
+  if ("cover_url" in book && book.cover_url !== null && !isCoverUrl(book.cover_url)) {
+    return fail(400, "Covers can only come from Open Library.");
+  }
+  if ("copies" in item && !(Number.isInteger(item.copies) && item.copies >= 1)) {
+    return fail(400, "Copies needs to be a whole number, 1 or more.");
+  }
   const stmts = [];
   if (Object.keys(book).length) {
     const cols = Object.keys(book);

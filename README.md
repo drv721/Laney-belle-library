@@ -28,6 +28,17 @@ Covers come from Open Library, about one request a second, 25 books per request,
 
 No database change is needed for this, so no migration runs. Pull, then `npx wrangler deploy`.
 
+## Book page
+
+- Tap any book in the list (or its cover in Covers view) to open its page. Every detail is there: title, subtitle, authors (one per line), ISBNs, publisher, published, pages, description, status, list, collection, copies, shelf location, condition, added, reading dates, rating, review, notes and purchase details.
+- Save sends only what changed, through `PATCH /api/books/{id}`, so the change log shows exactly what moved. Enter in a box never saves; only the Save button does.
+- ISBNs are checked before saving. A valid ISBN-10 fills in an empty ISBN-13 and the other way round.
+- Find cover looks the ISBN up on Open Library and saves the cover. Add an ISBN first for a book that has none.
+- Book details (title, authors, ISBN...) are shared by every copy of the same book, so fixing one fixes both. Shelf details belong to that copy.
+- Remove on the page works like Remove on the row, with Undo.
+- The server refuses an empty title, a cover from anywhere but Open Library, and copies below 1.
+- Files: `public/book.js`, tests in `test/book.test.mjs`.
+
 ## Scan to add
 
 - Tap Add book. The ISBN box at the top has the cursor, so a Bluetooth scanner in keyboard mode types straight into it. Typing an ISBN (10 or 13 digits) and pressing Enter does the same.

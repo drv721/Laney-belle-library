@@ -4,6 +4,7 @@
 import { openImport, wireImport } from "./import.js";
 import { wireAdd } from "./add.js";
 import { openBulk, wireBulk } from "./bulk.js";
+import { openBook, wireBook } from "./book.js";
 
 const $ = (sel) => document.querySelector(sel);
 const state = {
@@ -83,9 +84,10 @@ function render() {
         ? `<button class="status-btn" data-restore="${b.id}">Restore</button>`
         : `<button class="status-btn ${esc(b.status_code)}" data-cycle="${b.id}" title="Tap to change">${esc(statusLabel(b.status_code))}</button>
            <button class="status-btn ghost" data-remove="${b.id}" aria-label="Remove ${esc(b.title)}">Remove</button>`;
-      return `<li>
+      const name = `<div class="title">${esc(b.title)}</div><div class="author">${esc(authors)}</div>`;
+      return `<li${state.showDeleted ? "" : ` data-open="${b.id}"`}>
         ${coverHtml(b)}
-        <div><div class="title">${esc(b.title)}</div><div class="author">${esc(authors)}</div></div>
+        <div>${state.showDeleted ? name : `<button class="open-book" data-open="${b.id}" aria-label="Open ${esc(b.title)}">${name}</button>`}</div>
         <div class="row-actions">${actions}</div>
       </li>`;
     })
@@ -153,6 +155,12 @@ function wire() {
         await api(`/api/books/${t.dataset.restore}/restore`, { method: "POST" });
         await loadBooks();
         toast("Back on the shelf");
+      } else {
+        // Anywhere else on a row opens the book page. Buttons on the row keep their own jobs.
+        const row = t.closest("[data-open]");
+        if (!row || (t.closest("button") && !t.closest(".open-book"))) return;
+        const book = state.books.find((b) => b.id === row.dataset.open);
+        if (book) openBook(book, state.settings);
       }
     } catch (err) {
       toast(err.message);
@@ -164,6 +172,7 @@ function wire() {
 
   wireAdd({ api, toast, fillSelects, onChange: loadBooks });
   wireBulk({ api, onChange: loadBooks });
+  wireBook({ api, toast, onChange: loadBooks });
   $("#bulk-open").addEventListener("click", () => openBulk(state.settings));
 }
 

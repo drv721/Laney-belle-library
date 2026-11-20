@@ -132,6 +132,26 @@
     </form>
   </dialog>
 
+  <dialog id="book-dialog">
+    <form id="book-form" novalidate>
+      <div class="book-head">
+        <div id="book-cover"></div>
+        <div class="book-cover-actions">
+          <button type="button" id="book-cover-find" class="ghost">Find cover</button>
+          <p id="book-cover-msg" class="muted" role="status"></p>
+        </div>
+      </div>
+      <div id="book-fields" class="book-fields"></div>
+      <p id="book-msg" class="flag" role="status"></p>
+      <div class="dialog-actions book-actions">
+        <button type="button" id="book-remove" class="ghost">Remove</button>
+        <span class="spacer"></span>
+        <button type="button" id="book-cancel" class="ghost">Cancel</button>
+        <button type="submit" id="book-save" class="primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
   <div id="toast" class="toast" role="status" hidden>
     <span id="toast-text"></span>
     <button id="toast-undo" class="ghost">Undo</button>
