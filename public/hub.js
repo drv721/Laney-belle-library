@@ -23,8 +23,13 @@ export const RESULTS_MAX = 60; // a search shows this many covers at most
 export const IDLE_MS = 3 * 60 * 1000; // back to a clean screen after 3 quiet minutes
 
 // The one line under a cover: where the book is.
+// "BILLY 2 · Row 3, spot 5" once the shelf scan has placed it; until then the
+// shelf she typed, if any.
 export function spotLine(book) {
-  return [book.location, book.shelf_location].filter(Boolean).join(" · ");
+  const row = book.shelf_row
+    ? `${book.shelf_word || "Row"} ${book.shelf_row}${book.shelf_pos ? `, spot ${book.shelf_pos}` : ""}`
+    : "";
+  return [book.location, row || book.shelf_location].filter(Boolean).join(" · ");
 }
 
 // The details on the Where it is panel, in the order she'd look for them.

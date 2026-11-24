@@ -48,21 +48,68 @@ export async function createSection(env, by, kind, body, logChange) {
   const { next } = await env.DB.prepare(`SELECT COALESCE(MAX(sort_order), 0) + 1 AS next FROM ${k.table}`).first();
   const insert = kind === "subcategories"
     ? env.DB.prepare("INSERT INTO subcategories (id, collection_id, name, sort_order) VALUES (?, ?, ?, ?)").bind(id, collectionId, name, next)
-    : env.DB.prepare("INSERT INTO locations (id, name, sort_order) VALUES (?, ?, ?)").bind(id, name, next);
+    : env.DB.prepare("INSERT INTO locations (id, name, sort_order, shelf_word) VALUES (?, ?, ?, 'Row')").bind(id, name, next);
   await insert.run();
   const after = await getRow(env, kind, id);
   await logChange(env, by, k.entity, id, "create", null, after).run();
   return { status: 201, data: after };
 }
 
+// A location's details besides its name: the room it's in, glass doors or
+// none, how many rows (or cubbies or shelves) it has, and the word for one.
+export const SHELF_WORDS = ["Row", "Cubby", "Shelf"];
+export const MAX_SHELVES = 30;
+
+function locationDetails(body) {
+  const out = {};
+  if ("room" in body) out.room = cleanName(body.room) || null;
+  if ("doors" in body) {
+    if (body.doors !== null && body.doors !== "glass") return { error: "Doors are glass or none." };
+    out.doors = body.doors;
+  }
+  if ("shelf_count" in body) {
+    const n = body.shelf_count === null || body.shelf_count === "" ? null : Number(body.shelf_count);
+    if (n !== null && !(Number.isInteger(n) && n >= 1 && n <= MAX_SHELVES)) return { error: `Rows are a whole number from 1 to ${MAX_SHELVES}.` };
+    out.shelf_count = n;
+  }
+  if ("shelf_word" in body) {
+    if (!SHELF_WORDS.includes(body.shelf_word)) return { error: `The word for one is ${SHELF_WORDS.join(", ")}.` };
+    out.shelf_word = body.shelf_word;
+  }
+  return { out };
+}
+
+// Rename, and for a location also change its details. Only what's sent changes.
 export async function renameSection(env, by, kind, id, body, logChange) {
   const k = KINDS[kind];
   const before = await getRow(env, kind, id);
   if (!before || before.deleted_at) return { status: 404, data: { error: `No such ${k.label}.` } };
-  const name = cleanName(body.name);
-  if (!name) return { status: 400, data: { error: "A name is needed." } };
-  if (await nameTaken(env, kind, name, before.collection_id, id)) return { status: 409, data: { error: `There's already a ${k.label} called ${name}.` } };
-  await env.DB.prepare(`UPDATE ${k.table} SET name = ? WHERE id = ?`).bind(name, id).run();
+  const sets = {};
+  if ("name" in body || kind !== "locations") {
+    const name = cleanName(body.name);
+    if (!name) return { status: 400, data: { error: "A name is needed." } };
+    if (await nameTaken(env, kind, name, before.collection_id, id)) return { status: 409, data: { error: `There's already a ${k.label} called ${name}.` } };
+    sets.name = name;
+  }
+  if (kind === "locations") {
+    const d = locationDetails(body);
+    if (d.error) return { status: 400, data: { error: d.error } };
+    Object.assign(sets, d.out);
+    // Fewer rows than before can't strand books on a row that's gone.
+    if (sets.shelf_count != null) {
+      const row = await env.DB.prepare(
+        "SELECT MAX(shelf_row) AS top FROM shelf_items WHERE location_id = ? AND deleted_at IS NULL AND shelf_row > ?"
+      ).bind(id, sets.shelf_count).first();
+      if (row?.top) {
+        const word = (before.shelf_word || "Row").toLowerCase();
+        return { status: 409, data: { error: `${before.shelf_word || "Row"} ${row.top} still has books. Move them to another ${word} first.` } };
+      }
+    }
+  }
+  const cols = Object.keys(sets);
+  if (!cols.length) return { status: 400, data: { error: "Nothing to change." } };
+  await env.DB.prepare(`UPDATE ${k.table} SET ${cols.map((c) => `${c} = ?`).join(", ")} WHERE id = ?`)
+    .bind(...cols.map((c) => sets[c]), id).run();
   const after = await getRow(env, kind, id);
   await logChange(env, by, k.entity, id, "update", before, after).run();
   return { status: 200, data: after };
@@ -95,6 +142,12 @@ export async function checkSections(env, item, before) {
     const row = await getRow(env, "locations", String(item.location_id));
     if (!row || row.deleted_at) return "That location doesn't exist.";
   }
+  // Moving a book to another location drops its row and spot on the old one,
+  // unless the same edit sets them.
+  if ("location_id" in item && item.location_id !== before.location_id) {
+    if (!("shelf_row" in item)) item.shelf_row = null;
+    if (!("shelf_pos" in item)) item.shelf_pos = null;
+  }
   // Moving a book to another collection drops a subcategory that doesn't belong there.
   if ("collection_id" in item && item.collection_id !== before.collection_id && !("subcategory_id" in item) && before.subcategory_id) {
     item.subcategory_id = null;
@@ -123,7 +176,7 @@ export async function bulkSet(env, by, body) {
   const inIds = "s.id IN (SELECT value FROM json_each(?))";
   const { results: before } = await env.DB.prepare(
     // A removed subcategory or location reads as none, as it does everywhere else.
-    `SELECT s.id, s.collection_id, sc.id AS subcategory_id, lo.id AS location_id FROM shelf_items s
+    `SELECT s.id, s.collection_id, sc.id AS subcategory_id, lo.id AS location_id, s.shelf_row, s.shelf_pos FROM shelf_items s
        LEFT JOIN subcategories sc ON sc.id = s.subcategory_id AND sc.deleted_at IS NULL
        LEFT JOIN locations lo ON lo.id = s.location_id AND lo.deleted_at IS NULL
       WHERE ${inIds} AND s.deleted_at IS NULL`
@@ -141,8 +194,16 @@ export async function bulkSet(env, by, body) {
     if (!loc) return bad("That location doesn't exist.");
   }
 
-  const set = fields.map((f) => `${f} = ?`).join(", ");
+  let set = fields.map((f) => `${f} = ?`).join(", ");
   const values = fields.map((f) => body[f]);
+  const setValues = [...values];
+  // A book moved to another location loses its row and spot there.
+  // Undo puts them back (the answer carries them).
+  if ("location_id" in body) {
+    set = "shelf_row = CASE WHEN s.location_id IS ? THEN s.shelf_row ELSE NULL END" +
+      ", shelf_pos = CASE WHEN s.location_id IS ? THEN s.shelf_pos ELSE NULL END, " + set;
+    setValues.unshift(body.location_id, body.location_id);
+  }
   const snapshot = (prefix) => `json_object(${fields.map((f) => `'${f}', ${prefix}${f}`).join(", ")})`;
   const after = `json_object(${fields.map((f) => `'${f}', ?`).join(", ")})`;
   const stamp = now();
@@ -154,10 +215,13 @@ export async function bulkSet(env, by, body) {
     ).bind(by, ...values, idsJson),
     env.DB.prepare(
       `UPDATE shelf_items AS s SET ${set}, updated_at = ?, updated_by = ? WHERE ${inIds}`
-    ).bind(...values, stamp, by, idsJson),
+    ).bind(...setValues, stamp, by, idsJson),
   ]);
   return {
     status: 200,
-    data: { updated: ids.length, before: before.map(({ id, subcategory_id, location_id }) => ({ id, subcategory_id, location_id })) },
+    data: {
+      updated: ids.length,
+      before: before.map(({ id, subcategory_id, location_id, shelf_row, shelf_pos }) => ({ id, subcategory_id, location_id, shelf_row, shelf_pos })),
+    },
   };
 }

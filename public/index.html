@@ -156,6 +156,45 @@
     <ul id="bulk-items" class="books list bulk-items"></ul>
   </section>
 
+  <section id="shelf-view" hidden>
+    <div class="top">
+      <h2>Shelf scan</h2>
+      <button id="shelf-close" class="ghost">Back to library</button>
+    </div>
+    <p class="muted">Pick a place and a row, then scan its books from left to right. The order you scan in is each book's spot. Nothing is saved until you tap Save row.</p>
+    <div class="import-options">
+      <label>Place <select id="shelf-place"></select></label>
+      <label id="shelf-row-label">Row <select id="shelf-row"></select></label>
+    </div>
+    <label class="scan-label">Scan or type the ISBN
+      <input id="shelf-scan" inputmode="numeric" enterkeyhint="go" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="978...">
+    </label>
+    <button type="button" id="shelf-cam" class="ghost cam-open">Use camera</button>
+    <div id="shelf-cam-panel" class="cam" hidden>
+      <video data-cam-video playsinline muted></video>
+      <p data-cam-msg class="muted" role="status"></p>
+      <button type="button" data-cam-stop class="ghost">Stop camera</button>
+    </div>
+    <label class="scan-label">No barcode? Find it by title
+      <input id="shelf-find" type="search" autocomplete="off" placeholder="Title or author">
+    </label>
+    <ul id="shelf-found" class="books list"></ul>
+    <details class="shelf-paste">
+      <summary>Paste a list</summary>
+      <p class="muted">One book a line, left to right: an ISBN, or a title with the author after "by" if two books share a title.</p>
+      <textarea id="shelf-paste" rows="6" autocomplete="off" spellcheck="false"></textarea>
+      <button type="button" id="shelf-paste-go" class="ghost">Add these to the row</button>
+      <ul id="shelf-paste-left" class="muted"></ul>
+    </details>
+    <p id="shelf-msg" class="muted" role="status"></p>
+    <p id="shelf-count"></p>
+    <div class="import-actions">
+      <button id="shelf-save" class="primary" disabled>Save row</button>
+      <button id="shelf-reset" class="ghost" disabled>Put back as saved</button>
+    </div>
+    <ol id="shelf-items" class="books list shelf-items"></ol>
+  </section>
+
   <p class="credit muted">Covers from <a href="https://openlibrary.org">Open Library</a></p>
 
   <dialog id="add-dialog">
@@ -247,6 +286,10 @@
         <li><button type="button" id="stats-open" class="settings-item">
           <span>Library stats</span>
           <span class="muted">Counts by status, location, subcategory, tag and author</span>
+        </button></li>
+        <li><button type="button" id="shelf-open" class="settings-item">
+          <span>Shelf scan</span>
+          <span class="muted">Scan a row left to right to save where each book sits</span>
         </button></li>
         <li><button type="button" id="sections-open" class="settings-item">
           <span>Subcategories and locations</span>

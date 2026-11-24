@@ -116,6 +116,21 @@ npx wrangler d1 migrations apply melanie-library --remote
 npx wrangler deploy
 ```
 
+## Shelf scan (where each book sits)
+
+- Settings > Shelf scan: pick a place and a row, then scan that row's books left to right. The order is each book's spot. Books with no barcode are found by title. A pasted list (one ISBN or title a line, left to right) fills a row read from a photo. Nothing saves until Save row, and Undo puts the row back.
+- Her six places: BILLY 1 to 4 (living room, 6 rows, glass doors), Kitchen counter case (kitchen, 7 cubbies) and Sofa console (living room, 2 shelves). A Bookcase 1 to 6 stand-in becomes one of these only if it still has its stand-in name and no books. A stand-in she renamed or used keeps its name and books, and the real place is added beside it.
+- Settings > Subcategories and locations now also sets each place's room, how many rows, what one is called (Row, Cubby or Shelf) and glass doors. Fewer rows than a row that has books is refused.
+- The list and the hub show the spot, like "BILLY 2 · Row 3, spot 5". Moving a book to another location (book page or Select) drops its old row; Undo after Select puts it back.
+- Files: `migrations/0004_shelf_places.sql`, `src/shelf.js` (POST /api/books/spots), `src/sections.js` (place details), `public/shelf.js` (the screen). Tests: `test/shelf.test.mjs`.
+
+This one changes the database: four new columns on locations, two on her copies, and an index, nothing renamed or removed. Run the migration **before** the deploy, because the new code reads the new columns:
+
+```
+npx wrangler d1 migrations apply melanie-library --remote
+npx wrangler deploy
+```
+
 ## Rules for every change
 
 1. Structure changes only through a new numbered file in `migrations/`. Never edit a migration that has already run.

@@ -252,3 +252,15 @@ body.selecting .toast { bottom: calc(env(safe-area-inset-bottom) + 230px); z-ind
 .stats-label, .stats-count { position: relative; z-index: 1; }
 .stats-count { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .stats-bar { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--accent) 22%, transparent); z-index: 0; }
+
+/* Shelf scan */
+#shelf-view { display: grid; gap: 12px; }
+#shelf-view h2 { margin: 0; }
+#shelf-found li, .shelf-items li { grid-template-columns: 1fr auto; }
+.shelf-items li { grid-template-columns: 2em 1fr auto; }
+.spot-num { font-weight: 600; color: var(--muted); text-align: right; }
+.shelf-paste textarea { width: 100%; box-sizing: border-box; }
+.section-details { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.85rem; color: var(--muted); }
+.section-details label { display: grid; gap: 2px; }
+.section-details input[data-detail="shelf_count"] { width: 4em; }
+.section-details .check { display: flex; align-items: center; gap: 6px; }

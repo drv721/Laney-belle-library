@@ -53,6 +53,11 @@ export async function undoBulk(api, before, fields) {
       await api("/api/books/bulk", { method: "POST", body: { ids: part, ...g.values } });
     }
   }
+  // A move to another location cleared each book's row and spot: put those back too.
+  if (!fields.includes("location_id")) return;
+  const spots = before.filter((b) => b.shelf_row != null)
+    .map((b) => ({ id: b.id, location_id: b.location_id ?? null, shelf_row: b.shelf_row, shelf_pos: b.shelf_pos ?? null }));
+  for (const part of chunks(spots, 200)) await api("/api/books/spots", { method: "POST", body: { items: part } });
 }
 
 // What the toast says: "Set Fantasy and Bookcase 2 on 12 books".
