@@ -11,6 +11,8 @@ import { KEEP, bulkChanges, applyBulk, undoBulk, summary, applyTagBulk, undoTagB
 import { wireTagBox, cleanTag } from "./tags.js";
 import { wireHub, spotLine } from "./hub.js";
 import { openShelf, wireShelf } from "./shelf.js";
+import { openCases, wireCases } from "./cases.js";
+import { wirePictures } from "./pictures.js";
 import { wireStats } from "./stats.js";
 
 const $ = (sel) => document.querySelector(sel);
@@ -415,7 +417,7 @@ function wire() {
 
   const adder = wireAdd({ api, toast, fillSelects, onChange: reloadSettings }); // a new tag shows up in the menus
   wireBulk({ api, onChange: loadBooks });
-  wireBook({ api, toast, onChange: reloadSettings });
+  wireBook({ api, toast, onChange: reloadSettings, onShowCase: openCases });
   refreshAddTags = wireTagBox($("#add-form").elements.tags, $("#add-tag-suggest"), () => state.settings.tags);
   wireSections({ api, toast, getSettings: () => state.settings, onChange: reloadSettings });
   $("#sections-open").addEventListener("click", fromSettings(openSections));
@@ -425,6 +427,9 @@ function wire() {
   $("#bulk-open").addEventListener("click", () => openBulk(state.settings));
   wireShelf({ api, toast, getSettings: () => state.settings, onChange: reloadSettings });
   $("#shelf-open").addEventListener("click", fromSettings(openShelf));
+  wireCases({ api, getSettings: () => state.settings, openBook });
+  wirePictures({ api, onChange: reloadSettings });
+  $("#cases-open").addEventListener("click", fromSettings(() => openCases()));
 
   // The hub replaces the library screen on this device until she taps Full library.
   hub = wireHub({

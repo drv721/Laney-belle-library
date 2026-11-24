@@ -131,6 +131,30 @@ npx wrangler d1 migrations apply melanie-library --remote
 npx wrangler deploy
 ```
 
+## Bookcases (each case drawn, books in their spots)
+
+- Settings > Bookcases: one case at a time, picked by room (or Prev and Next). Each row shows its books standing left to right in their saved spots. Glass doors swing open when the case shows, and Close doors and Open doors move them again.
+- Tap a spine to open the book page. Books in a place with no row yet are listed under the case.
+- The book page has Show on the bookcase when the book has a place: it opens that case and points the book out. Back returns to the library or the hub, wherever she came from.
+- Nothing here changes a book. It reads the spots that Shelf scan saves.
+- When a book has a spine picture, the case shows the real spine, sized to the photo. Books without one keep a plain colored spine.
+- Files: `public/cases.js` (the screen), styles at the end of `public/styles.css`. Tests: `test/cases.test.mjs`.
+
+## Spine and cover pictures
+
+- Settings > Add pictures takes a pictures file: spines cut from a photo of one row, and cover photos for books Open Library has no cover for. Each picture names the copy it's for, and goes to that book, so two copies of one book share it.
+- A new picture replaces the book's earlier one, and the change log keeps what was there before.
+- Pictures are kept in the backups bucket under `pictures/`, away from `nightly/`, so the nightly clean-up never touches them. A cover photo uses the same cover field as Open Library covers, so every screen shows it.
+- The export spreadsheet now ends with the copy id, cover, spine picture, row and spot, so pictures can be matched to the right copies.
+- Files: `src/pictures.js`, `public/pictures.js`, `migrations/0005_pictures.sql`. Tests: `test/pictures.test.mjs`.
+
+This adds three columns to the books table, so run the migration first, then deploy:
+
+```
+npx wrangler d1 migrations apply melanie-library --remote
+npx wrangler deploy
+```
+
 ## Rules for every change
 
 1. Structure changes only through a new numbered file in `migrations/`. Never edit a migration that has already run.

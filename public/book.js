@@ -83,6 +83,7 @@ function render() {
   const v = (k) => esc(it[k] ?? "");
   $("#book-cover").innerHTML = coverBox(it);
   $("#book-cover-find").hidden = Boolean(it.cover_url);
+  $("#book-show-case").hidden = !(s.locations || []).some((l) => l.id === it.location_id);
   $("#book-cover-msg").textContent = "";
   $("#book-msg").textContent = "";
   $("#book-fields").innerHTML = `
@@ -202,9 +203,16 @@ export function openBook(item, settings) {
   $("#book-dialog").scrollTop = 0;
 }
 
-export function wireBook({ api, toast, onChange }) {
+export function wireBook({ api, toast, onChange, onShowCase }) {
   const dlg = $("#book-dialog");
   const form = $("#book-form");
+
+  // From the book page to its case, with the book pointed out.
+  $("#book-show-case").addEventListener("click", () => {
+    const it = page.item;
+    dlg.close();
+    onShowCase?.(it);
+  });
 
   // Enter in a one-line box shouldn't save the whole page by surprise.
   form.addEventListener("keydown", (e) => {
