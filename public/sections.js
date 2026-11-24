@@ -8,6 +8,19 @@ const books = (n) => `${n} ${n === 1 ? "book" : "books"}`;
 
 let ctx = null; // { api, toast, getSettings, onChange }
 
+const WORDS = ["Row", "Cubby", "Shelf"]; // same as src/sections.js
+
+// A location also has its room, how many rows it has, and the word for one.
+function detailsHtml(r) {
+  const word = r.shelf_word || "Row";
+  return `<div class="section-details">
+      <label>Room <input data-detail="room" data-id="${esc(r.id)}" value="${esc(r.room)}" autocomplete="off" maxlength="60"></label>
+      <label>How many <input data-detail="shelf_count" data-id="${esc(r.id)}" value="${esc(r.shelf_count)}" inputmode="numeric" autocomplete="off" maxlength="2"></label>
+      <label>Called <select data-detail="shelf_word" data-id="${esc(r.id)}">${WORDS.map((w) => `<option ${w === word ? "selected" : ""}>${w}</option>`).join("")}</select></label>
+      <label class="check"><input type="checkbox" data-detail="doors" data-id="${esc(r.id)}" ${r.doors === "glass" ? "checked" : ""}> Glass doors</label>
+    </div>`;
+}
+
 function listHtml(kind, rows) {
   const word = kind === "subcategories" ? "subcategory" : "location";
   return `<ul class="section-list">${rows.map((r) => `
@@ -15,7 +28,22 @@ function listHtml(kind, rows) {
         <input value="${esc(r.name)}" data-kind="${kind}" data-id="${esc(r.id)}" data-name="${esc(r.name)}" aria-label="Name of ${word} ${esc(r.name)}" autocomplete="off" maxlength="60">
         <button type="button" class="ghost" data-remove="${esc(r.id)}" data-kind="${kind}" data-name="${esc(r.name)}">Remove</button>
         <p class="count">${books(r.count)}</p>
+        ${kind === "locations" ? detailsHtml(r) : ""}
       </li>`).join("")}</ul>`;
+}
+
+async function saveDetail(el) {
+  const f = el.dataset.detail;
+  const value = f === "doors" ? (el.checked ? "glass" : null)
+    : f === "shelf_count" ? (el.value.trim() === "" ? null : Number(el.value.trim()))
+    : el.value;
+  try {
+    await ctx.api(`/api/locations/${el.dataset.id}`, { method: "PATCH", body: { [f]: value } });
+    $("#sections-msg").textContent = "";
+  } catch (err) {
+    $("#sections-msg").textContent = err.message;
+  }
+  await refresh();
 }
 
 function addHtml(kind, collectionId, placeholder) {
@@ -103,7 +131,10 @@ export function wireSections(c) {
   ctx = c;
   const body = $("#sections-body");
   // A rename saves when she leaves the box or presses Enter.
-  body.addEventListener("change", (e) => { if (e.target.dataset.id) rename(e.target); });
+  body.addEventListener("change", (e) => {
+    if (e.target.dataset.detail) saveDetail(e.target);
+    else if (e.target.dataset.id) rename(e.target);
+  });
   body.addEventListener("keydown", (e) => {
     if (e.key !== "Enter" || e.isComposing || e.target.tagName !== "INPUT") return;
     e.preventDefault(); // Enter never closes the screen

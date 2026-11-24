@@ -9,7 +9,8 @@ import { openSections, wireSections } from "./sections.js";
 import { openFields, wireFields } from "./fields.js";
 import { KEEP, bulkChanges, applyBulk, undoBulk, summary, applyTagBulk, undoTagBulk, tagSummary } from "./select.js";
 import { wireTagBox, cleanTag } from "./tags.js";
-import { wireHub } from "./hub.js";
+import { wireHub, spotLine } from "./hub.js";
+import { openShelf, wireShelf } from "./shelf.js";
 import { wireStats } from "./stats.js";
 
 const $ = (sel) => document.querySelector(sel);
@@ -158,7 +159,7 @@ function render() {
         ? `<button class="status-btn" data-restore="${b.id}">Restore</button>`
         : `<button class="status-btn ${esc(b.status_code)}" data-cycle="${b.id}" title="Tap to change">${esc(statusLabel(b.status_code))}</button>
            <button class="status-btn ghost" data-remove="${b.id}" aria-label="Remove ${esc(b.title)}">Remove</button>`;
-      const where = [b.subcategory, b.location].filter(Boolean).join(" · ");
+      const where = [b.subcategory, spotLine(b)].filter(Boolean).join(" · ");
       const name = `<div class="title">${esc(b.title)}</div><div class="author">${esc(authors)}</div>${where ? `<div class="meta">${esc(where)}</div>` : ""}`;
       if (state.selecting) {
         return `<li data-pick="${b.id}" class="${picked ? "picked" : ""}" role="checkbox" aria-checked="${picked}" tabindex="0">
@@ -422,6 +423,8 @@ function wire() {
   $("#fields-open").addEventListener("click", fromSettings(openFields));
   $("#add-collection").addEventListener("change", fillAddSubcategories);
   $("#bulk-open").addEventListener("click", () => openBulk(state.settings));
+  wireShelf({ api, toast, getSettings: () => state.settings, onChange: reloadSettings });
+  $("#shelf-open").addEventListener("click", fromSettings(openShelf));
 
   // The hub replaces the library screen on this device until she taps Full library.
   hub = wireHub({

@@ -10,6 +10,7 @@ import { sortByAuthor } from "./sort.js";
 import { KINDS, listStatement, createSection, renameSection, setSectionDeleted, checkSections, bulkSet } from "./sections.js";
 import { cleanTags, setTagStatements, bulkTag } from "./tags.js";
 import { libraryStats } from "./stats.js";
+import { setSpots } from "./shelf.js";
 import {
   fieldsStatement, createField, renameField, setFieldDeleted, customValueStatements,
   statusesStatement, createStatus, renameStatus, setStatusDeleted, statusIsLive,
@@ -79,7 +80,7 @@ const ITEM_SELECT = `
          (SELECT json_group_object(cv.field_id, cv.value) FROM custom_values cv
             JOIN custom_fields cf ON cf.id = cv.field_id AND cf.deleted_at IS NULL
            WHERE cv.shelf_item_id = s.id) AS custom,
-         sc.name AS subcategory, lo.name AS location
+         sc.name AS subcategory, lo.name AS location, lo.shelf_word AS shelf_word
   FROM shelf_items s JOIN books b ON b.id = s.book_id
   LEFT JOIN subcategories sc ON sc.id = s.subcategory_id AND sc.deleted_at IS NULL
   LEFT JOIN locations lo ON lo.id = s.location_id AND lo.deleted_at IS NULL`;
@@ -118,7 +119,8 @@ const SORTS = {
   status: "(SELECT sort_order FROM statuses WHERE code = s.status_code), b.title COLLATE NOCASE, s.id",
   // Books with none set go last.
   subcategory: "(sc.name IS NULL), sc.sort_order, sc.name COLLATE NOCASE, b.title COLLATE NOCASE, s.id",
-  location: "(lo.name IS NULL), lo.sort_order, lo.name COLLATE NOCASE, b.title COLLATE NOCASE, s.id",
+  // Then by row and spot, so a sort by location reads like the shelves do.
+  location: "(lo.name IS NULL), lo.sort_order, lo.name COLLATE NOCASE, (s.shelf_row IS NULL), s.shelf_row, (s.shelf_pos IS NULL), s.shelf_pos, b.title COLLATE NOCASE, s.id",
 };
 
 async function listItems(env, url) {
@@ -443,6 +445,12 @@ async function handleApi(request, env) {
   // Several books at once: subcategory and location.
   if (path === "/api/books/bulk" && method === "POST") {
     const r = await bulkSet(env, email, body);
+    return json(r.data, r.status);
+  }
+
+  // The shelf scan: where each copy sits (location, row, spot on the row).
+  if (path === "/api/books/spots" && method === "POST") {
+    const r = await setSpots(env, email, body);
     return json(r.data, r.status);
   }
 
