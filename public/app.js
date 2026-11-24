@@ -12,6 +12,7 @@ import { wireTagBox, cleanTag } from "./tags.js";
 import { wireHub, spotLine } from "./hub.js";
 import { openShelf, wireShelf } from "./shelf.js";
 import { openCases, wireCases } from "./cases.js";
+import { wirePictures } from "./pictures.js";
 import { wireStats } from "./stats.js";
 
 const $ = (sel) => document.querySelector(sel);
@@ -427,6 +428,7 @@ function wire() {
   wireShelf({ api, toast, getSettings: () => state.settings, onChange: reloadSettings });
   $("#shelf-open").addEventListener("click", fromSettings(openShelf));
   wireCases({ api, getSettings: () => state.settings, openBook });
+  wirePictures({ api, onChange: reloadSettings });
   $("#cases-open").addEventListener("click", fromSettings(() => openCases()));
 
   // The hub replaces the library screen on this device until she taps Full library.

@@ -282,6 +282,7 @@ body.selecting .toast { bottom: calc(env(safe-area-inset-bottom) + 230px); z-ind
 .row-tag { position: absolute; left: 6px; bottom: 6px; font-size: 0.75rem; color: var(--muted); }
 .row-empty { align-self: center; }
 .spine {
+  position: relative;
   flex: 0 0 var(--wide); width: var(--wide); height: var(--tall); min-height: 0; padding: 4px 0; border-radius: 2px 2px 0 0;
   border: 0; border-left: 1px solid rgba(255,255,255,0.12); background: var(--spine); color: #f3efe6;
   display: flex; justify-content: center; overflow: hidden; cursor: pointer;
@@ -303,3 +304,5 @@ body.selecting .toast { bottom: calc(env(safe-area-inset-bottom) + 230px); z-ind
 #cases-loose h3 { font-size: 1rem; margin: 8px 0; }
 .link-book { width: 100%; display: grid; justify-items: start; text-align: left; border-radius: var(--radius); }
 @media (prefers-reduced-motion: reduce) { .door { transition: none; } .spine.found { animation: none; } }
+.spine.pic { background-size: 100% 100%; background-repeat: no-repeat; border-left: 0; padding: 0; }
+.spine.pic span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } /* the picture shows the title; screen readers still get it */

@@ -297,6 +297,18 @@
     </div>
   </div>
 
+  <dialog id="pictures-dialog">
+    <form method="dialog">
+      <h2>Add pictures</h2>
+      <p class="muted">Pick a pictures file. Each spine or cover photo goes on the book it was made for. A new picture replaces the book's old one.</p>
+      <label>Pictures file <input id="pictures-file" type="file" accept=".json,application/json"></label>
+      <p id="pictures-msg" class="muted" role="status"></p>
+      <div class="dialog-actions">
+        <button type="submit" class="primary">Done</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="settings-dialog">
     <form method="dialog" id="settings-form">
       <h2>Settings</h2>
@@ -308,6 +320,10 @@
         <li><button type="button" id="cases-open" class="settings-item">
           <span>Bookcases</span>
           <span class="muted">See each case with the books where they sit</span>
+        </button></li>
+        <li><button type="button" id="pictures-open" class="settings-item">
+          <span>Add pictures</span>
+          <span class="muted">Spines and cover photos from a pictures file</span>
         </button></li>
         <li><button type="button" id="shelf-open" class="settings-item">
           <span>Shelf scan</span>

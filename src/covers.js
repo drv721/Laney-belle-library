@@ -14,7 +14,10 @@ export const MAX_ISBNS_PER_CALL = 25;
 const COVER_URL = /^https:\/\/covers\.openlibrary\.org\/b\/id\/(\d+)-[SML]\.jpg$/;
 
 export function isCoverUrl(v) {
-  return typeof v === "string" && /^https:\/\/covers\.openlibrary\.org\/b\/id\/\d+-M\.jpg$/.test(v);
+  if (typeof v !== "string") return false;
+  if (/^https:\/\/covers\.openlibrary\.org\/b\/id\/\d+-M\.jpg$/.test(v)) return true;
+  // A cover photo she added, kept by the app (src/pictures.js).
+  return /^\/api\/pictures\/cover\/[A-Za-z0-9-]{1,40}\.jpg\?v=\d{1,16}$/.test(v);
 }
 
 function userAgent(env) {

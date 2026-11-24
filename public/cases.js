@@ -91,12 +91,24 @@ function fillPicker() {
   $("#cases-next").disabled = i < 0 || i >= list.length - 1;
 }
 
+// A spine picture stands to scale: its share of the row's height, and a
+// width from its shape. Without one, the made-up spine.
+const ROW_INNER = 124; // px a book can stand in (row height less its top gap)
+export function spineSize(book) {
+  const look = spineLook(book);
+  if (!book.spine_url || !(book.spine_ratio > 0)) return { ...look, picture: false };
+  const height = book.spine_tall > 0 ? Math.round(Math.min(1, book.spine_tall) * 100) : look.height;
+  const width = Math.round(Math.min(80, Math.max(6, (ROW_INNER * height) / 100 * book.spine_ratio)));
+  return { color: look.color, height, width, picture: true };
+}
+
 function spineHtml(b, word) {
-  const look = spineLook(b);
+  const look = spineSize(b);
   const where = `${word} ${b.shelf_row}, spot ${b.shelf_pos ?? "?"}`;
   const label = `${b.title}${b.authors?.length ? ` by ${b.authors.join(", ")}` : ""}, ${where}`;
-  return `<button type="button" class="spine${b.id === view.highlight ? " found" : ""}" data-book="${esc(b.id)}"
-    style="--spine:${look.color};--tall:${look.height}%;--wide:${look.width}px" aria-label="${esc(label)}"><span>${esc(b.title)}</span></button>`;
+  const pic = look.picture ? `;background-image:url('${esc(b.spine_url)}')` : "";
+  return `<button type="button" class="spine${look.picture ? " pic" : ""}${b.id === view.highlight ? " found" : ""}" data-book="${esc(b.id)}"
+    style="--spine:${look.color};--tall:${look.height}%;--wide:${look.width}px${pic}" aria-label="${esc(label)}"><span>${esc(b.title)}</span></button>`;
 }
 
 function render() {

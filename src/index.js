@@ -11,6 +11,7 @@ import { KINDS, listStatement, createSection, renameSection, setSectionDeleted, 
 import { cleanTags, setTagStatements, bulkTag } from "./tags.js";
 import { libraryStats } from "./stats.js";
 import { setSpots } from "./shelf.js";
+import { addPictures, getPicture } from "./pictures.js";
 import {
   fieldsStatement, createField, renameField, setFieldDeleted, customValueStatements,
   statusesStatement, createStatus, renameStatus, setStatusDeleted, statusIsLive,
@@ -75,6 +76,7 @@ function logChange(env, by, entity, entityId, action, before, after) {
 const ITEM_SELECT = `
   SELECT s.*, b.isbn13, b.isbn10, b.title, b.subtitle, b.authors, b.publisher,
          b.publish_date, b.pages, b.cover_url, b.description, b.source,
+         b.spine_url, b.spine_ratio, b.spine_tall,
          (SELECT json_group_array(t.name) FROM shelf_item_tags st
             JOIN tags t ON t.id = st.tag_id WHERE st.shelf_item_id = s.id) AS tags,
          (SELECT json_group_object(cv.field_id, cv.value) FROM custom_values cv
@@ -326,6 +328,8 @@ const CSV_COLUMNS = [
   "completed_date", "added_date", "copies", "shelf_location", "condition",
   "purchase_place", "purchase_date", "purchase_price", "tags",
   "subcategory", "location",
+  // For matching her row photos to her copies: which copy, its pictures and its spot.
+  "id", "cover_url", "spine_url", "shelf_row", "shelf_pos",
 ];
 function csvCell(v) {
   if (v === null || v === undefined) return "";
@@ -453,6 +457,14 @@ async function handleApi(request, env) {
     const r = await setSpots(env, email, body);
     return json(r.data, r.status);
   }
+
+  // Spine pictures and cover photos, from a file made from her row photos.
+  if (path === "/api/pictures" && method === "POST") {
+    const r = await addPictures(env, email, body);
+    return json(r.data, r.status);
+  }
+  m = path.match(/^\/api\/pictures\/(spine|cover)\/([A-Za-z0-9-]{1,40})\.jpg$/);
+  if (m && method === "GET") return getPicture(env, m[1], m[2]);
 
   if (path === "/api/books" && method === "GET") return json(await listItems(env, url));
   if (path === "/api/books" && method === "POST") return addBook(env, email, body);
