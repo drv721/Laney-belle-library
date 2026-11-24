@@ -131,6 +131,20 @@ npx wrangler d1 migrations apply melanie-library --remote
 npx wrangler deploy
 ```
 
+## Bookcases (each case drawn, books in their spots)
+
+- Settings > Bookcases: one case at a time, picked by room (or Prev and Next). Each row shows its books standing left to right in their saved spots. Glass doors swing open when the case shows, and Close doors and Open doors move them again.
+- Tap a spine to open the book page. Books in a place with no row yet are listed under the case.
+- The book page has Show on the bookcase when the book has a place: it opens that case and points the book out. Back returns to the library or the hub, wherever she came from.
+- Nothing here changes a book. It reads the spots that Shelf scan saves.
+- Files: `public/cases.js` (the screen), styles at the end of `public/styles.css`. Tests: `test/cases.test.mjs`.
+
+No database change, so this one is a deploy only:
+
+```
+npx wrangler deploy
+```
+
 ## Rules for every change
 
 1. Structure changes only through a new numbered file in `migrations/`. Never edit a migration that has already run.
